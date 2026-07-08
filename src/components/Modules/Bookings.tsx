@@ -1,13 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Plus, Search, Filter, Eye, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
-import { mockBookings, mockRooms } from '../../data/mockData';
-import { Booking } from '../../types';
+import { Booking, Room } from '../../types';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
+
+const emptyBookingForm = {
+  guestName: '',
+  guestEmail: '',
+  guestPhone: '',
+  roomType: 'single',
+  roomId: '',
+  checkIn: '',
+  checkOut: '',
+  specialRequests: '',
+};
 
 export default function Bookings() {
-  const [bookings] = useState<Booking[]>(mockBookings);
+  const { formatCurrency } = useSettings();
+  const { bookings: appBookings, rooms: appRooms, addBooking, updateBookingStatus, deleteBooking } = useAppData();
+  const bookings = appBookings;
+  const rooms = appRooms;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [newBooking, setNewBooking] = useState(emptyBookingForm);
 
   const filteredBookings = bookings.filter(booking => {
     const matchesSearch = booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -17,7 +35,7 @@ export default function Bookings() {
   });
 
   const getRoomNumber = (roomId: string) => {
-    const room = mockRooms.find(r => r.id === roomId);
+    const room = appRooms.find(r => r.id === roomId);
     return room?.number || 'N/A';
   };
 
@@ -41,15 +59,92 @@ export default function Bookings() {
     }
   };
 
+  const isRoomAvailableForDates = (room: Room, checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut) {
+      return true;
+    }
+
+    const requestedCheckIn = new Date(checkIn);
+    const requestedCheckOut = new Date(checkOut);
+
+    return !bookings.some(booking => {
+      if (booking.roomId !== room.id) {
+        return false;
+      }
+
+      const existingCheckIn = new Date(booking.checkIn);
+      const existingCheckOut = new Date(booking.checkOut);
+
+      return requestedCheckIn < existingCheckOut && requestedCheckOut > existingCheckIn;
+    });
+  };
+
+  const getAvailableRooms = () => {
+    const normalizedRoomType = newBooking.roomType.toLowerCase();
+    return rooms.filter(room => room.type === normalizedRoomType && room.status === 'available' && isRoomAvailableForDates(room, newBooking.checkIn, newBooking.checkOut));
+  };
+
+  const availableRooms = getAvailableRooms();
+  const selectedRoom = availableRooms.find(room => room.id === newBooking.roomId) || null;
+  const nights = newBooking.checkIn && newBooking.checkOut
+    ? Math.max(1, Math.round((new Date(newBooking.checkOut).getTime() - new Date(newBooking.checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+    : 1;
+  const estimatedAmount = selectedRoom ? selectedRoom.price * nights : 0;
+
+  useEffect(() => {
+    if (availableRooms.length > 0 && !availableRooms.some(room => room.id === newBooking.roomId)) {
+      setNewBooking(prev => ({ ...prev, roomId: availableRooms[0].id }));
+    }
+
+    if (availableRooms.length === 0 && newBooking.roomId) {
+      setNewBooking(prev => ({ ...prev, roomId: '' }));
+    }
+  }, [availableRooms, newBooking.roomId]);
+
+  const handleCreateBooking = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!selectedRoom) {
+      setFeedback('No matching available rooms are free for the selected dates.');
+      return;
+    }
+
+    addBooking({
+      guestName: newBooking.guestName,
+      guestEmail: newBooking.guestEmail,
+      guestPhone: newBooking.guestPhone,
+      roomId: selectedRoom.id,
+      checkIn: new Date(newBooking.checkIn),
+      checkOut: new Date(newBooking.checkOut),
+      status: 'confirmed',
+      totalAmount: estimatedAmount,
+      paymentStatus: 'pending',
+      bookingSource: 'walk-in',
+      specialRequests: newBooking.specialRequests,
+    });
+    setShowNewBookingModal(false);
+    setNewBooking(emptyBookingForm);
+    setFeedback(`Booking created for ${bookingToAdd.guestName} in Room ${selectedRoom.number} for ${formatCurrency(estimatedAmount)}.`);
+  };
+
+  const handleStatusUpdate = (bookingId: string, nextStatus: Booking['status']) => {
+    updateBookingStatus(bookingId, nextStatus);
+    setFeedback(`Booking status updated to ${nextStatus.replace('-', ' ')}.`);
+  };
+
+  const handleDeleteBooking = (bookingId: string) => {
+    deleteBooking(bookingId);
+    setFeedback('Booking removed from the active list.');
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reservation & Booking Management</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage all hotel bookings and reservations</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowNewBookingModal(true)}
           className="mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
         >
@@ -58,7 +153,12 @@ export default function Bookings() {
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {feedback && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+          {feedback}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
@@ -96,7 +196,7 @@ export default function Bookings() {
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Revenue</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ${bookings.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
+                {formatCurrency(bookings.reduce((sum, b) => sum + b.totalAmount, 0))}
               </p>
             </div>
             <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
@@ -106,7 +206,6 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Filters and Search */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
           <div className="relative flex-1">
@@ -136,33 +235,18 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Bookings Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Guest Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Room
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Dates
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Payment
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Guest Details</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dates</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -170,32 +254,18 @@ export default function Bookings() {
                 <tr key={booking.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {booking.guestName}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {booking.guestEmail}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {booking.guestPhone}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{booking.guestName}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{booking.guestEmail}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{booking.guestPhone}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      Room {getRoomNumber(booking.roomId)}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">
-                      {booking.bookingSource}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Room {getRoomNumber(booking.roomId)}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">{booking.bookingSource}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {booking.checkIn.toLocaleDateString()}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      to {booking.checkOut.toLocaleDateString()}
-                    </div>
+                    <div className="text-sm text-gray-900 dark:text-white">{booking.checkIn.toLocaleDateString()}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">to {booking.checkOut.toLocaleDateString()}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
@@ -208,17 +278,17 @@ export default function Bookings() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    ${booking.totalAmount.toLocaleString()}
+                    {formatCurrency(booking.totalAmount)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                      <button onClick={() => setSelectedBooking(booking)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300">
+                      <button onClick={() => handleStatusUpdate(booking.id, booking.status === 'confirmed' ? 'checked-in' : 'confirmed')} className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                      <button onClick={() => handleDeleteBooking(booking.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -230,111 +300,94 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* New Booking Modal */}
       {showNewBookingModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Booking</h2>
-              <button
-                onClick={() => setShowNewBookingModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
+              <button onClick={() => setShowNewBookingModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
-            
-            <form className="space-y-4">
+
+            <form onSubmit={handleCreateBooking} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Guest Name
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter guest name"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Guest Name</label>
+                  <input type="text" value={newBooking.guestName} onChange={(e) => setNewBooking(prev => ({ ...prev, guestName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Enter guest name" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter email"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                  <input type="email" value={newBooking.guestEmail} onChange={(e) => setNewBooking(prev => ({ ...prev, guestEmail: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Enter email" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter phone number"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
+                  <input type="tel" value={newBooking.guestPhone} onChange={(e) => setNewBooking(prev => ({ ...prev, guestPhone: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Enter phone number" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Room Type
-                  </label>
-                  <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                    <option>Select room type</option>
-                    <option>Single</option>
-                    <option>Double</option>
-                    <option>Suite</option>
-                    <option>Deluxe</option>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Room Type</label>
+                  <select value={newBooking.roomType} onChange={(e) => setNewBooking(prev => ({ ...prev, roomType: e.target.value, roomId: '' }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="single">Single</option>
+                    <option value="double">Double</option>
+                    <option value="suite">Suite</option>
+                    <option value="deluxe">Deluxe</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Check-in Date
-                  </label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Available Room</label>
+                  <select value={newBooking.roomId} onChange={(e) => setNewBooking(prev => ({ ...prev, roomId: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required>
+                    <option value="">Select an available room</option>
+                    {availableRooms.map(room => (
+                      <option key={room.id} value={room.id}>Room {room.number} — {formatCurrency(room.price)}/night</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Check-out Date
-                  </label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in Date</label>
+                  <input type="date" value={newBooking.checkIn} onChange={(e) => setNewBooking(prev => ({ ...prev, checkIn: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out Date</label>
+                  <input type="date" value={newBooking.checkOut} onChange={(e) => setNewBooking(prev => ({ ...prev, checkOut: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Special Requests
-                </label>
-                <textarea
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Any special requests..."
-                />
+
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                <p className="font-medium">Estimated stay total</p>
+                <p className="mt-1">{selectedRoom ? `${selectedRoom.number} • ${nights} night${nights > 1 ? 's' : ''} • ${formatCurrency(estimatedAmount)}` : 'Select a room to see the nightly rate and total.'}</p>
               </div>
-              
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Special Requests</label>
+                <textarea rows={3} value={newBooking.specialRequests} onChange={(e) => setNewBooking(prev => ({ ...prev, specialRequests: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Any special requests..." />
+              </div>
+
               <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowNewBookingModal(false)}
-                  className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Create Booking
-                </button>
+                <button type="button" onClick={() => setShowNewBookingModal(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Create Booking</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Booking Details</h2>
+              <button onClick={() => setSelectedBooking(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+              <p><span className="font-medium">Guest:</span> {selectedBooking.guestName}</p>
+              <p><span className="font-medium">Email:</span> {selectedBooking.guestEmail}</p>
+              <p><span className="font-medium">Room:</span> {getRoomNumber(selectedBooking.roomId)}</p>
+              <p><span className="font-medium">Dates:</span> {selectedBooking.checkIn.toLocaleDateString()} to {selectedBooking.checkOut.toLocaleDateString()}</p>
+              <p><span className="font-medium">Amount:</span> {formatCurrency(selectedBooking.totalAmount)}</p>
+              <p><span className="font-medium">Special requests:</span> {selectedBooking.specialRequests || 'None'}</p>
+            </div>
           </div>
         </div>
       )}

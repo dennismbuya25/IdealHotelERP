@@ -1,25 +1,34 @@
 import React, { useState } from 'react';
 import { Users, UserCheck, Calendar, DollarSign, Plus, Search, Download, Clock, Award } from 'lucide-react';
-import { mockStaff } from '../../data/mockData';
 import { Staff } from '../../types';
+import { useAppData } from '../../contexts/AppDataContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export default function HR() {
-  const [staff, setStaff] = useState<Staff[]>(mockStaff);
+  const { staff, addStaff, updateStaff, deleteStaff, rotaAssignments, addRotaAssignment } = useAppData();
+  const { formatCurrency } = useSettings();
+  const [staffState, setStaffState] = useState<Staff[]>(staff);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'staff' | 'attendance' | 'payroll' | 'performance'>('staff');
+  const [activeTab, setActiveTab] = useState<'staff' | 'attendance' | 'payroll' | 'performance' | 'rota'>('staff');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [newRotaAssignment, setNewRotaAssignment] = useState({
+    date: new Date().toISOString().split('T')[0],
+    employeeId: staff[0]?.id || '',
+    shift: 'morning' as Staff['shift'],
+  });
+  const [feedback, setFeedback] = useState<string | null>(null);
 
-  const filteredStaff = staff.filter(member => {
+  const filteredStaff = staffState.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = filterDepartment === 'all' || member.department === filterDepartment;
     return matchesSearch && matchesDepartment;
   });
 
-  const totalStaff = staff.length;
-  const activeStaff = staff.filter(s => s.isActive).length;
-  const totalPayroll = staff.reduce((sum, s) => sum + s.salary, 0);
+  const totalStaff = staffState.length;
+  const activeStaff = staffState.filter(s => s.isActive).length;
+  const totalPayroll = staffState.reduce((sum, s) => sum + s.salary, 0);
   const avgSalary = totalPayroll / staff.length;
 
   const getDepartmentColor = (department: string) => {
@@ -43,7 +52,7 @@ export default function HR() {
     return colors[shift as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };
 
-  const mockPayrollData = staff.map(member => ({
+  const mockPayrollData = staffState.map(member => ({
     id: member.id,
     name: member.name,
     baseSalary: member.salary,
@@ -53,7 +62,7 @@ export default function HR() {
     month: 'January 2024',
   }));
 
-  const mockPerformanceData = staff.map(member => ({
+  const mockPerformanceData = staffState.map(member => ({
     id: member.id,
     name: member.name,
     department: member.department,
@@ -62,6 +71,33 @@ export default function HR() {
     completed: Math.floor(Math.random() * 5) + 2, // 2-6 completed
     lastReview: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
   }));
+
+  const groupedRotaAssignments = [...rotaAssignments].sort((a, b) => a.date.localeCompare(b.date)).reduce((acc, assignment) => {
+    if (!acc[assignment.date]) {
+      acc[assignment.date] = [];
+    }
+    acc[assignment.date].push(assignment);
+    return acc;
+  }, {} as Record<string, typeof rotaAssignments>);
+
+  const handleAllocateShift = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const employee = staffState.find(member => member.id === newRotaAssignment.employeeId);
+    if (!employee) {
+      setFeedback('Please select a valid employee.');
+      return;
+    }
+
+    addRotaAssignment({
+      employeeId: employee.id,
+      employeeName: employee.name,
+      date: newRotaAssignment.date,
+      shift: newRotaAssignment.shift,
+    });
+
+    setFeedback(`Assigned ${employee.name} to the ${newRotaAssignment.shift} shift on ${newRotaAssignment.date}.`);
+  };
 
   return (
     <div className="space-y-6">
@@ -95,7 +131,7 @@ export default function HR() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Monthly Payroll</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${totalPayroll.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalPayroll)}</p>
             </div>
             <DollarSign className="w-8 h-8 text-purple-600" />
           </div>
@@ -104,7 +140,7 @@ export default function HR() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Salary</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${Math.round(avgSalary).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(Math.round(avgSalary))}</p>
             </div>
             <Award className="w-8 h-8 text-yellow-600" />
           </div>
@@ -134,6 +170,16 @@ export default function HR() {
               }`}
             >
               Attendance
+            </button>
+            <button
+              onClick={() => setActiveTab('rota')}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'rota'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Rota Management
             </button>
             <button
               onClick={() => setActiveTab('payroll')}
@@ -230,7 +276,7 @@ export default function HR() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Salary:</span>
-                        <span className="font-medium text-gray-900 dark:text-white">${member.salary.toLocaleString()}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(member.salary)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Join Date:</span>
@@ -343,6 +389,98 @@ export default function HR() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* Rota Management Tab */}
+          {activeTab === 'rota' && (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Rota Management</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Allocate employees to daily shifts and review the upcoming schedule.</p>
+                </div>
+              </div>
+
+              {feedback && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+                  {feedback}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/70">
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Allocate Shift</h4>
+                  <form onSubmit={handleAllocateShift} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={newRotaAssignment.date}
+                        onChange={(e) => setNewRotaAssignment(prev => ({ ...prev, date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee</label>
+                      <select
+                        value={newRotaAssignment.employeeId}
+                        onChange={(e) => setNewRotaAssignment(prev => ({ ...prev, employeeId: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        {staffState.map(member => (
+                          <option key={member.id} value={member.id}>{member.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shift</label>
+                      <select
+                        value={newRotaAssignment.shift}
+                        onChange={(e) => setNewRotaAssignment(prev => ({ ...prev, shift: e.target.value as Staff['shift'] }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="night">Night</option>
+                      </select>
+                    </div>
+                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors">
+                      Allocate Shift
+                    </button>
+                  </form>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Current Schedule</h4>
+                  <div className="space-y-4">
+                    {Object.entries(groupedRotaAssignments).length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                        No shift allocations yet. Add one to build the rota.
+                      </div>
+                    ) : (
+                      Object.entries(groupedRotaAssignments).map(([date, assignments]) => (
+                        <div key={date} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+                          <div className="mb-3 flex items-center justify-between">
+                            <h5 className="font-medium text-gray-900 dark:text-white">{new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h5>
+                            <span className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-400">{assignments.length} assigned</span>
+                          </div>
+                          <div className="space-y-2">
+                            {assignments.map(assignment => (
+                              <div key={assignment.id} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-900">
+                                <span className="font-medium text-gray-900 dark:text-white">{assignment.employeeName}</span>
+                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${getShiftColor(assignment.shift)}`}>
+                                  {assignment.shift}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

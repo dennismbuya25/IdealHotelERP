@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SettingsProvider } from './contexts/SettingsContext';
+import { AppDataProvider } from './contexts/AppDataContext';
 import LoginForm from './components/Auth/LoginForm';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
@@ -19,11 +22,40 @@ import Reports from './components/Modules/Reports';
 import Settings from './components/Modules/Settings';
 import GuestManagement from './components/Modules/GuestManagement';
 import Payroll from './components/Modules/Payroll';
+import GuestPortal from './components/Modules/GuestPortal';
+
+const moduleRoutes: Record<string, string> = {
+  dashboard: '/dashboard',
+  bookings: '/bookings',
+  'front-desk': '/front-desk',
+  rooms: '/rooms',
+  billing: '/billing',
+  restaurant: '/restaurant',
+  inventory: '/inventory',
+  hr: '/hr',
+  payroll: '/payroll',
+  finance: '/finance',
+  crm: '/crm',
+  reports: '/reports',
+  settings: '/settings',
+  guestportal: '/guest-portal',
+};
 
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const [activeModule, setActiveModule] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const activeModule = user?.role === 'guest'
+    ? 'guestportal'
+    : Object.entries(moduleRoutes).find(([, route]) => route === location.pathname)?.[0] || 'dashboard';
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   if (isLoading) {
     return (
@@ -40,6 +72,11 @@ function AppContent() {
     return <LoginForm />;
   }
 
+  const handleModuleChange = (module: string) => {
+    const route = moduleRoutes[module] || '/dashboard';
+    navigate(route);
+  };
+
   const renderModule = () => {
     switch (activeModule) {
       case 'dashboard': return <Dashboard />;
@@ -55,6 +92,7 @@ function AppContent() {
       case 'crm': return <CRM />;
       case 'reports': return <Reports />;
       case 'settings': return <Settings />;
+      case 'guestportal': return <GuestPortal />;
       default: return <Dashboard />;
     }
   };
@@ -63,7 +101,7 @@ function AppContent() {
     <div className="min-h-screen bg-slate-950 text-slate-900 flex">
       <Sidebar
         activeModule={activeModule}
-        onModuleChange={setActiveModule}
+        onModuleChange={handleModuleChange}
         isCollapsed={sidebarCollapsed}
       />
 
@@ -84,7 +122,15 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <SettingsProvider>
+          <AppDataProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/*" element={<AppContent />} />
+              </Routes>
+            </BrowserRouter>
+          </AppDataProvider>
+        </SettingsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

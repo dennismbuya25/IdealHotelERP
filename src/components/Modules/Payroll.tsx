@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { DollarSign, Users, Calendar, Download, Send, CheckCircle, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { DollarSign, Users, Calendar, Download, Send, CheckCircle, Sparkles, ReceiptText } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
 
 interface Employee {
   id: string;
@@ -11,16 +13,32 @@ interface Employee {
 }
 
 export default function Payroll() {
+  const { formatCurrency } = useSettings();
+  const { staff } = useAppData();
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].slice(0, 7));
-  const [employees] = useState<Employee[]>([
-    { id: '1', name: 'John Doe', role: 'Manager', salary: 5000, month: '2026-07', status: 'paid' },
-    { id: '2', name: 'Sarah Wilson', role: 'Receptionist', salary: 3000, month: '2026-07', status: 'paid' },
-    { id: '3', name: 'Mike Johnson', role: 'Housekeeping', salary: 2500, month: '2026-07', status: 'processed' },
-    { id: '4', name: 'Emma Davis', role: 'Chef', salary: 4000, month: '2026-07', status: 'pending' },
-    { id: '5', name: 'David Brown', role: 'Maintenance', salary: 2800, month: '2026-07', status: 'pending' },
-  ]);
-
+  const [payrollStatuses, setPayrollStatuses] = useState<Record<string, Employee['status']>>({});
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedStatuses = window.localStorage.getItem('ideal-hotel-payroll-statuses');
+    if (savedStatuses) {
+      setPayrollStatuses(JSON.parse(savedStatuses));
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('ideal-hotel-payroll-statuses', JSON.stringify(payrollStatuses));
+  }, [payrollStatuses]);
+
+  const employees: Employee[] = staff.map(member => ({
+    id: member.id,
+    name: member.name,
+    role: member.position,
+    salary: member.salary,
+    month: selectedMonth,
+    status: payrollStatuses[member.id] || 'pending',
+  }));
 
   const toggleEmployeeSelection = (id: string) => {
     setSelectedEmployees(prev =>
@@ -33,7 +51,12 @@ export default function Payroll() {
     .reduce((sum, e) => sum + e.salary, 0);
 
   const processPayroll = () => {
-    alert(`Processed payroll for ${selectedEmployees.length} employees totaling $${totalSalaries}`);
+    const updatedStatuses = { ...payrollStatuses };
+    selectedEmployees.forEach(employeeId => {
+      updatedStatuses[employeeId] = 'paid';
+    });
+    setPayrollStatuses(updatedStatuses);
+    setFeedback(`Processed payroll for ${selectedEmployees.length} employees totaling ${formatCurrency(totalSalaries)}.`);
     setSelectedEmployees([]);
   };
 
@@ -48,6 +71,12 @@ export default function Payroll() {
 
   return (
     <div className="space-y-6">
+      {feedback && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+          {feedback}
+        </div>
+      )}
+
       <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 p-6 text-white shadow-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -62,7 +91,7 @@ export default function Payroll() {
           </div>
           <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur">
             <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Selected payout</p>
-            <p className="mt-1 text-2xl font-semibold">${totalSalaries.toLocaleString()}</p>
+            <p className="mt-1 text-2xl font-semibold">{formatCurrency(totalSalaries)}</p>
           </div>
         </div>
       </div>
@@ -82,9 +111,9 @@ export default function Payroll() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-slate-600 dark:text-slate-400">Monthly Payroll</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">${employees.reduce((sum, e) => sum + e.salary, 0).toLocaleString()}</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(employees.reduce((sum, e) => sum + e.salary, 0))}</p>
             </div>
-            <DollarSign className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+            <ReceiptText className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
           </div>
         </div>
 
@@ -161,7 +190,7 @@ export default function Payroll() {
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{employee.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{employee.role}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-slate-900 dark:text-white">${employee.salary.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-900 dark:text-white">{formatCurrency(employee.salary)}</td>
                   <td className="px-6 py-4 text-sm">
                     <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(employee.status)}`}>
                       {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
@@ -187,7 +216,7 @@ export default function Payroll() {
             </h3>
             {selectedEmployees.length > 0 && (
               <p className="mt-1 text-xl font-bold text-blue-600 dark:text-blue-400">
-                Total: ${totalSalaries.toLocaleString()}
+                Total: {formatCurrency(totalSalaries)}
               </p>
             )}
           </div>

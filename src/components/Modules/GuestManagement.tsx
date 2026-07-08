@@ -1,31 +1,47 @@
 import React, { useState } from 'react';
-import { Users, UserCheck, UserX, Key, Clock, AlertCircle, Search, Plus, Phone, Mail, MapPin, Calendar, Star, Gift } from 'lucide-react';
-import { mockBookings, mockGuests, mockRooms } from '../../data/mockData';
+import { Users, UserCheck, UserX, Key, Clock, Search, Plus, Phone, Mail, MapPin, Calendar, Star, Gift } from 'lucide-react';
 import { Guest, Booking } from '../../types';
+import { useAppData } from '../../contexts/AppDataContext';
+
+const emptyGuestForm = {
+  name: '',
+  email: '',
+  phone: '',
+  idType: 'passport' as Guest['idType'],
+  idNumber: '',
+  address: '',
+  preferences: '',
+  notes: '',
+};
 
 export default function GuestManagement() {
+  const { bookings: appBookings, guests: appGuests, rooms: appRooms, addGuest, updateBooking } = useAppData();
   const [activeTab, setActiveTab] = useState<'checkin' | 'checkout' | 'profiles' | 'preferences'>('checkin');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const bookings = appBookings;
+  const guests = appGuests;
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [newGuest, setNewGuest] = useState(emptyGuestForm);
 
-  const todayCheckIns = mockBookings.filter(b => 
-    b.status === 'confirmed' && 
+  const todayCheckIns = bookings.filter(b =>
+    b.status === 'confirmed' &&
     b.checkIn.toDateString() === new Date().toDateString()
   );
 
-  const todayCheckOuts = mockBookings.filter(b => 
-    b.status === 'checked-in' && 
+  const todayCheckOuts = bookings.filter(b =>
+    b.status === 'checked-in' &&
     b.checkOut.toDateString() === new Date().toDateString()
   );
 
-  const currentGuests = mockBookings.filter(b => b.status === 'checked-in');
+  const currentGuests = bookings.filter(b => b.status === 'checked-in');
 
   const getRoomDetails = (roomId: string) => {
-    return mockRooms.find(r => r.id === roomId);
+    return appRooms.find(r => r.id === roomId);
   };
 
-  const filteredGuests = mockGuests.filter(guest =>
+  const filteredGuests = guests.filter(guest =>
     guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     guest.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     guest.phone.includes(searchTerm)
@@ -39,29 +55,70 @@ export default function GuestManagement() {
   };
 
   const handleCheckIn = (bookingId: string) => {
-    console.log(`Checking in booking: ${bookingId}`);
-    alert('Guest checked in successfully!');
+    const booking = bookings.find(item => item.id === bookingId);
+    if (booking) {
+      updateBooking({ ...booking, status: 'checked-in' });
+    }
+    setFeedback('Guest checked in successfully.');
   };
 
   const handleCheckOut = (bookingId: string) => {
-    console.log(`Checking out booking: ${bookingId}`);
-    alert('Guest checked out successfully!');
+    const booking = bookings.find(item => item.id === bookingId);
+    if (booking) {
+      updateBooking({ ...booking, status: 'checked-out' });
+    }
+    setFeedback('Guest checked out successfully.');
   };
 
   const handleAssignKey = (roomNumber: string) => {
-    console.log(`Assigning key for room: ${roomNumber}`);
-    alert(`Digital key assigned for room ${roomNumber}`);
+    setFeedback(`Digital key assigned for room ${roomNumber}.`);
+  };
+
+  const handleExtendStay = (bookingId: string) => {
+    const booking = bookings.find(item => item.id === bookingId);
+    if (booking) {
+      updateBooking({ ...booking, checkOut: new Date(booking.checkOut.getTime() + 24 * 60 * 60 * 1000) });
+    }
+    setFeedback('Stay extended by one day.');
+  };
+
+  const handleAddGuest = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const guestToAdd: Guest = {
+      id: `G-${Date.now()}`,
+      name: newGuest.name,
+      email: newGuest.email,
+      phone: newGuest.phone,
+      idType: newGuest.idType,
+      idNumber: newGuest.idNumber,
+      address: newGuest.address,
+      preferences: newGuest.preferences.split(',').map(item => item.trim()).filter(Boolean),
+      loyaltyPoints: 0,
+      totalStays: 0,
+      notes: newGuest.notes,
+    };
+
+    addGuest(guestToAdd);
+    setSelectedGuest(guestToAdd);
+    setShowAddModal(false);
+    setNewGuest(emptyGuestForm);
+    setFeedback(`Guest profile added for ${guestToAdd.name}.`);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Guest Management</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Manage guest check-ins, check-outs, profiles, and preferences</p>
       </div>
 
-      {/* Quick Stats */}
+      {feedback && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+          {feedback}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
@@ -94,7 +151,7 @@ export default function GuestManagement() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">VIP Guests</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockGuests.filter(g => g.loyaltyPoints > 1000).length}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{guests.filter(g => g.loyaltyPoints > 1000).length}</p>
             </div>
             <Star className="w-8 h-8 text-yellow-600" />
           </div>
@@ -278,7 +335,10 @@ export default function GuestManagement() {
                             </div>
                           </div>
                           <div className="flex items-center space-x-3 ml-6">
-                            <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <button
+                              onClick={() => handleExtendStay(booking.id)}
+                              className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                            >
                               <Clock className="w-4 h-4" />
                               <span>Extend Stay</span>
                             </button>
@@ -518,69 +578,24 @@ export default function GuestManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Guest</h3>
-            <form className="space-y-4">
+            <form onSubmit={handleAddGuest} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                  <option>ID Type</option>
-                  <option>Passport</option>
-                  <option>National ID</option>
-                  <option>Driving License</option>
+                <input type="text" value={newGuest.name} onChange={(e) => setNewGuest(prev => ({ ...prev, name: e.target.value }))} placeholder="Full name" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <input type="email" value={newGuest.email} onChange={(e) => setNewGuest(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <input type="tel" value={newGuest.phone} onChange={(e) => setNewGuest(prev => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <select value={newGuest.idType} onChange={(e) => setNewGuest(prev => ({ ...prev, idType: e.target.value as Guest['idType'] }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                  <option value="passport">Passport</option>
+                  <option value="national-id">National ID</option>
+                  <option value="driving-license">Driving License</option>
                 </select>
-                <input
-                  type="text"
-                  placeholder="ID Number"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <input
-                  type="date"
-                  placeholder="Date of Birth"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
+                <input type="text" value={newGuest.idNumber} onChange={(e) => setNewGuest(prev => ({ ...prev, idNumber: e.target.value }))} placeholder="ID Number" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <input type="text" value={newGuest.address} onChange={(e) => setNewGuest(prev => ({ ...prev, address: e.target.value }))} placeholder="Address" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
               </div>
-              <textarea
-                placeholder="Address"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <textarea
-                placeholder="Preferences (comma separated)"
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <textarea
-                placeholder="Special notes"
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
+              <textarea value={newGuest.preferences} onChange={(e) => setNewGuest(prev => ({ ...prev, preferences: e.target.value }))} placeholder="Preferences (comma separated)" rows={2} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              <textarea value={newGuest.notes} onChange={(e) => setNewGuest(prev => ({ ...prev, notes: e.target.value }))} placeholder="Special notes" rows={2} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
               <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Add Guest
-                </button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Add Guest</button>
               </div>
             </form>
           </div>

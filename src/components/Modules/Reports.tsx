@@ -52,25 +52,28 @@ export default function Reports() {
     { id: 'competitor-analysis', name: 'Market Analysis', category: 'strategic', description: 'Competitive positioning and market trends' },
   ];
 
+  const [feedback, setFeedback] = useState<string | null>(null);
+
   const handleGenerateReport = (reportId: string) => {
-    // Simulate report generation
-    console.log(`Generating report: ${reportId}`);
-    alert(`Report "${reportId}" generated successfully!`);
+    setFeedback(`Report "${reportId}" generated successfully.`);
   };
 
   const handleExportReport = (format: string) => {
-    // Simulate export functionality
-    console.log(`Exporting report in ${format} format`);
-    alert(`Report exported as ${format.toUpperCase()} successfully!`);
+    setFeedback(`Report exported as ${format.toUpperCase()} successfully.`);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Generate insights and export comprehensive business reports</p>
       </div>
+
+      {feedback && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+          {feedback}
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

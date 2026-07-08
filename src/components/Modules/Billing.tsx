@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { CreditCard, Receipt, DollarSign, FileText, Plus, Search, Download } from 'lucide-react';
 import { mockBookings } from '../../data/mockData';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export default function Billing() {
+  const { formatCurrency } = useSettings();
   const [activeTab, setActiveTab] = useState<'invoices' | 'payments' | 'reports'>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -86,7 +88,7 @@ export default function Billing() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalRevenue)}</p>
             </div>
             <DollarSign className="w-8 h-8 text-green-600" />
           </div>
@@ -104,7 +106,7 @@ export default function Billing() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Amount</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${pendingAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(pendingAmount)}</p>
             </div>
             <FileText className="w-8 h-8 text-yellow-600" />
           </div>
@@ -219,7 +221,7 @@ export default function Billing() {
                           {invoice.guestName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          ${invoice.amount.toLocaleString()}
+                          {formatCurrency(invoice.amount)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>

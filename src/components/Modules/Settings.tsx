@@ -1,34 +1,69 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Users, Shield, Globe, Bell, Database, Palette, Key, Clock, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Shield, Globe, Bell, Database, Palette, Key, Clock, Mail, XCircle } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
+import { AuditLog, User } from '../../types';
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'security' | 'notifications' | 'integrations'>('general');
-  const [settings, setSettings] = useState({
-    hotelName: 'Ideal Hotel',
-    currency: 'USD',
-    timezone: 'UTC-5',
-    language: 'English',
-    dateFormat: 'MM/DD/YYYY',
-    checkInTime: '15:00',
-    checkOutTime: '11:00',
-    taxRate: 10,
-    emailNotifications: true,
-    smsNotifications: false,
-    darkMode: false,
-    autoBackup: true,
-    backupFrequency: 'daily',
-  });
+  const { settings, updateSettings, saveSettings, resetSettings, currencyCode } = useSettings();
+  const { users, auditLogs, addUser, addAuditLog, updateUser } = useAppData();
+  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'audit' | 'security' | 'notifications' | 'integrations'>('general');
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'receptionist' as User['role'], isActive: true });
 
   const handleSettingChange = (key: string, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    updateSettings({ [key]: value } as any);
   };
 
-  const mockUsers = [
-    { id: '1', name: 'John Anderson', email: 'admin@idealhotel.com', role: 'admin', status: 'active', lastLogin: '2024-01-20' },
-    { id: '2', name: 'Sarah Wilson', email: 'manager@idealhotel.com', role: 'manager', status: 'active', lastLogin: '2024-01-19' },
-    { id: '3', name: 'Mike Johnson', email: 'reception@idealhotel.com', role: 'receptionist', status: 'active', lastLogin: '2024-01-20' },
-    { id: '4', name: 'Lisa Brown', email: 'housekeeping@idealhotel.com', role: 'housekeeping', status: 'inactive', lastLogin: '2024-01-15' },
-  ];
+  const handleSaveChanges = () => {
+    saveSettings();
+    addAuditLog({ action: 'settings_saved', details: `Settings updated for ${settings.hotelName}.`, actor: 'Administrator' });
+    setSaveMessage(`Settings saved for ${settings.hotelName}.`);
+  };
+
+  const handleResetDefaults = () => {
+    resetSettings();
+    addAuditLog({ action: 'settings_reset', details: 'System settings reset to defaults.', actor: 'Administrator' });
+    setSaveMessage('Settings reset to defaults.');
+  };
+
+  const openAddUserModal = () => {
+    setEditingUser(null);
+    setUserForm({ name: '', email: '', role: 'receptionist', isActive: true });
+    setShowUserModal(true);
+  };
+
+  const openEditUserModal = (user: User) => {
+    setEditingUser(user);
+    setUserForm({ name: user.name, email: user.email, role: user.role, isActive: user.isActive });
+    setShowUserModal(true);
+  };
+
+  const handleUserSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (editingUser) {
+      updateUser({ ...editingUser, ...userForm });
+      addAuditLog({ action: 'user_updated', details: `Updated user ${userForm.name}.`, actor: 'Administrator' });
+      setSaveMessage(`Updated ${userForm.name}.`);
+    } else {
+      addUser({ ...userForm });
+      addAuditLog({ action: 'user_created', details: `Created user ${userForm.name}.`, actor: 'Administrator' });
+      setSaveMessage(`Added ${userForm.name}.`);
+    }
+
+    setShowUserModal(false);
+    setEditingUser(null);
+    setUserForm({ name: '', email: '', role: 'receptionist', isActive: true });
+  };
+
+  const handleToggleUserStatus = (user: User) => {
+    updateUser({ ...user, isActive: !user.isActive });
+    addAuditLog({ action: 'user_status_changed', details: `${user.name} marked ${user.isActive ? 'inactive' : 'active'}.`, actor: 'Administrator' });
+    setSaveMessage(`${user.name} is now ${user.isActive ? 'inactive' : 'active'}.`);
+  };
 
   const mockIntegrations = [
     { id: '1', name: 'Booking.com', type: 'Channel Manager', status: 'connected', description: 'Online booking platform integration' },
@@ -73,6 +108,12 @@ export default function Settings() {
         <p className="text-gray-600 dark:text-gray-400 mt-1">Configure system settings, manage users, and control access permissions</p>
       </div>
 
+      {saveMessage && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+          {saveMessage}
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -96,6 +137,16 @@ export default function Settings() {
               }`}
             >
               User Management
+            </button>
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'audit'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Audit Logs
             </button>
             <button
               onClick={() => setActiveTab('security')}
@@ -287,10 +338,18 @@ export default function Settings() {
               </div>
 
               <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <button className="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                <button
+                  type="button"
+                  onClick={handleResetDefaults}
+                  className="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                >
                   Reset to Defaults
                 </button>
-                <button className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                <button
+                  type="button"
+                  onClick={handleSaveChanges}
+                  className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   Save Changes
                 </button>
               </div>
@@ -330,7 +389,7 @@ export default function Settings() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {mockUsers.map((user) => (
+                    {users.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-3">
@@ -351,20 +410,28 @@ export default function Settings() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                            {user.status}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.isActive ? 'active' : 'inactive')}`}>
+                            {user.isActive ? 'active' : 'inactive'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {user.lastLogin}
+                          {new Date().toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                            <button
+                              type="button"
+                              onClick={() => openEditUserModal(user)}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                            >
                               Edit
                             </button>
-                            <button className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
-                              {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserStatus(user)}
+                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                            >
+                              {user.isActive ? 'Deactivate' : 'Activate'}
                             </button>
                           </div>
                         </td>
@@ -372,6 +439,72 @@ export default function Settings() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {showUserModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingUser ? 'Edit User' : 'Add User'}</h3>
+                  <button type="button" onClick={() => setShowUserModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+                <form onSubmit={handleUserSubmit} className="space-y-4">
+                  <input value={userForm.name} onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Full name" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+                  <input type="email" value={userForm.email} onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+                  <select value={userForm.role} onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value as User['role'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="receptionist">Receptionist</option>
+                    <option value="housekeeping">Housekeeping</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="hr">HR</option>
+                    <option value="guest">Guest</option>
+                  </select>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm(prev => ({ ...prev, isActive: e.target.checked }))} />
+                    Active account
+                  </label>
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => setShowUserModal(false)} className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700">Cancel</button>
+                    <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-white">Save User</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'audit' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Audit Logs</h3>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{auditLogs.length} entries</span>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70">
+                {auditLogs.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No audit logs have been recorded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {auditLogs.map((log) => (
+                      <div key={log.id} className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/60">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{log.action}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{log.details}</p>
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <p>{log.actor}</p>
+                            <p>{new Date(log.timestamp).toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

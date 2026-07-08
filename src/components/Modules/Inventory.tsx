@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import { Package, AlertTriangle, Plus, Search, Filter, TrendingDown, TrendingUp, ShoppingCart, Truck } from 'lucide-react';
-import { mockInventory } from '../../data/mockData';
+import { Package, AlertTriangle, Plus, Search, Filter, TrendingUp, ShoppingCart, Truck } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
 import { InventoryItem } from '../../types';
 
 export default function Inventory() {
-  const [items, setItems] = useState<InventoryItem[]>(mockInventory);
+  const { formatCurrency } = useSettings();
+  const { inventoryItems, addInventoryItem, updateInventoryItem } = useAppData();
+  const [items, setItems] = useState<InventoryItem[]>(inventoryItems);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'inventory' | 'suppliers' | 'orders'>('inventory');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [newItemForm, setNewItemForm] = useState({ name: '', category: 'kitchen' as InventoryItem['category'], currentStock: 0, minStock: 5, maxStock: 50, unit: 'units', unitPrice: 0, supplier: '' });
+  const [orderForm, setOrderForm] = useState({ supplier: '', quantity: 1, notes: '' });
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -35,11 +41,36 @@ export default function Inventory() {
   };
 
   const handleUpdateStock = (itemId: string, newStock: number) => {
-    setItems(items.map(item => 
-      item.id === itemId 
-        ? { ...item, currentStock: newStock, lastUpdated: new Date() }
-        : item
-    ));
+    const item = items.find(entry => entry.id === itemId);
+    if (item) {
+      updateInventoryItem({ ...item, currentStock: newStock, lastUpdated: new Date() });
+    }
+    setFeedback('Stock updated successfully.');
+  };
+
+  const handleCreateOrder = (event: React.FormEvent) => {
+    event.preventDefault();
+    setFeedback(`Purchase order created for ${orderForm.supplier || 'the selected supplier'}.`);
+    setShowOrderModal(false);
+    setOrderForm({ supplier: '', quantity: 1, notes: '' });
+  };
+
+  const handleAddItem = (event: React.FormEvent) => {
+    event.preventDefault();
+    addInventoryItem({
+      name: newItemForm.name,
+      category: newItemForm.category,
+      currentStock: newItemForm.currentStock,
+      minStock: newItemForm.minStock,
+      maxStock: newItemForm.maxStock,
+      unit: newItemForm.unit,
+      lastUpdated: new Date(),
+      supplier: newItemForm.supplier || undefined,
+      unitPrice: newItemForm.unitPrice,
+    });
+    setFeedback('New inventory item added to the catalog.');
+    setShowAddModal(false);
+    setNewItemForm({ name: '', category: 'kitchen', currentStock: 0, minStock: 5, maxStock: 50, unit: 'units', unitPrice: 0, supplier: '' });
   };
 
   const mockSuppliers = [
@@ -55,11 +86,16 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory & Procurement</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Manage stock levels, suppliers, and purchase orders</p>
       </div>
+
+      {feedback && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+          {feedback}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -85,7 +121,7 @@ export default function Inventory() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalValue)}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-600" />
           </div>
@@ -243,7 +279,7 @@ export default function Inventory() {
                             {item.minStock} / {item.maxStock}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                            ${item.unitPrice}
+                            {formatCurrency(item.unitPrice)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
@@ -369,7 +405,7 @@ export default function Inventory() {
                           {order.items} items
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          ${order.total}
+                          {formatCurrency(order.total)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -410,45 +446,27 @@ export default function Inventory() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Item</h3>
-            <form className="space-y-4">
-              <input
-                type="text"
-                placeholder="Item name"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                <option>Select category</option>
-                <option>Kitchen</option>
-                <option>Housekeeping</option>
-                <option>Bar</option>
-                <option>Maintenance</option>
+            <form onSubmit={handleAddItem} className="space-y-4">
+              <input value={newItemForm.name} onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))} type="text" placeholder="Item name" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+              <select value={newItemForm.category} onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value as InventoryItem['category'] }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                <option value="kitchen">Kitchen</option>
+                <option value="housekeeping">Housekeeping</option>
+                <option value="bar">Bar</option>
+                <option value="maintenance">Maintenance</option>
               </select>
               <div className="grid grid-cols-2 gap-4">
-                <input
-                  type="number"
-                  placeholder="Current stock"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Unit"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
+                <input type="number" value={newItemForm.currentStock} onChange={(e) => setNewItemForm(prev => ({ ...prev, currentStock: Number(e.target.value) }))} placeholder="Current stock" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <input type="text" value={newItemForm.unit} onChange={(e) => setNewItemForm(prev => ({ ...prev, unit: e.target.value }))} placeholder="Unit" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="number" value={newItemForm.minStock} onChange={(e) => setNewItemForm(prev => ({ ...prev, minStock: Number(e.target.value) }))} placeholder="Min stock" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <input type="number" value={newItemForm.maxStock} onChange={(e) => setNewItemForm(prev => ({ ...prev, maxStock: Number(e.target.value) }))} placeholder="Max stock" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+              </div>
+              <input type="number" value={newItemForm.unitPrice} onChange={(e) => setNewItemForm(prev => ({ ...prev, unitPrice: Number(e.target.value) }))} placeholder="Unit price" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+              <input type="text" value={newItemForm.supplier} onChange={(e) => setNewItemForm(prev => ({ ...prev, supplier: e.target.value }))} placeholder="Supplier" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
               <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Add Item
-                </button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Add Item</button>
               </div>
             </form>
           </div>
@@ -460,37 +478,18 @@ export default function Inventory() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Create Purchase Order</h3>
-            <form className="space-y-4">
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                <option>Select supplier</option>
+            <form onSubmit={handleCreateOrder} className="space-y-4">
+              <select value={orderForm.supplier} onChange={(e) => setOrderForm(prev => ({ ...prev, supplier: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                <option value="">Select supplier</option>
                 {mockSuppliers.map(supplier => (
                   <option key={supplier.id}>{supplier.name}</option>
                 ))}
               </select>
-              <input
-                type="number"
-                placeholder="Quantity"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <textarea
-                placeholder="Notes"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
+              <input type="number" value={orderForm.quantity} onChange={(e) => setOrderForm(prev => ({ ...prev, quantity: Number(e.target.value) }))} placeholder="Quantity" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+              <textarea value={orderForm.notes} onChange={(e) => setOrderForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Notes" rows={3} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
               <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowOrderModal(false)}
-                  className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Create Order
-                </button>
+                <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Create Order</button>
               </div>
             </form>
           </div>

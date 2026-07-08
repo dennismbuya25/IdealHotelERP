@@ -1,14 +1,27 @@
 import React from 'react';
-import { Users, Home, DollarSign, Star, TrendingUp, Calendar } from 'lucide-react';
+import { Users, Home, DollarSign, Star, TrendingUp, Calendar, Sparkles, BedDouble, ClipboardList } from 'lucide-react';
 import StatsCard from '../Dashboard/StatsCard';
 import OccupancyChart from '../Dashboard/OccupancyChart';
 import ActivityLog from '../Dashboard/ActivityLog';
-import { mockDashboardStats, mockRooms } from '../../data/mockData';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const stats = mockDashboardStats;
+  const { formatCurrency } = useSettings();
+  const { rooms, bookings, guests, staff } = useAppData();
+  const stats = {
+    totalRooms: rooms.length,
+    occupiedRooms: bookings.filter(booking => booking.status === 'checked-in').length,
+    availableRooms: rooms.filter(room => room.status === 'available').length,
+    occupancyRate: rooms.length ? Math.round((bookings.filter(booking => booking.status === 'checked-in').length / rooms.length) * 100) : 0,
+    totalRevenue: bookings.reduce((sum, booking) => sum + booking.totalAmount, 0),
+    todayBookings: bookings.filter(booking => booking.checkIn.toDateString() === new Date().toDateString()).length,
+    checkInsToday: bookings.filter(booking => booking.status === 'confirmed' && booking.checkIn.toDateString() === new Date().toDateString()).length,
+    checkOutsToday: bookings.filter(booking => booking.status === 'checked-in' && booking.checkOut.toDateString() === new Date().toDateString()).length,
+    customerSatisfaction: guests.length ? 4.7 : 4.0,
+  };
 
   const getRoleSpecificStats = () => {
     if (user?.role === 'receptionist') {
@@ -20,8 +33,26 @@ export default function Dashboard() {
       ];
     }
 
+    if (user?.role === 'housekeeping') {
+      return [
+        { title: 'Dirty Rooms', value: rooms.filter(room => room.status === 'dirty').length, icon: Sparkles, color: 'yellow' as const },
+        { title: 'Assigned Rooms', value: rooms.filter(room => room.assignedCleaner).length, icon: BedDouble, color: 'blue' as const },
+        { title: 'Available Rooms', value: stats.availableRooms, icon: Home, color: 'purple' as const },
+        { title: 'Staff On Shift', value: staff.filter(member => member.isActive).length, icon: ClipboardList, color: 'green' as const },
+      ];
+    }
+
+    if (user?.role === 'hr') {
+      return [
+        { title: 'Total Staff', value: staff.length, icon: Users, color: 'blue' as const },
+        { title: 'Active Staff', value: staff.filter(member => member.isActive).length, icon: Sparkles, color: 'green' as const },
+        { title: 'Payroll Budget', value: formatCurrency(staff.reduce((sum, member) => sum + member.salary, 0)), icon: DollarSign, color: 'purple' as const },
+        { title: 'Bookings', value: bookings.length, icon: Calendar, color: 'indigo' as const },
+      ];
+    }
+
     return [
-      { title: 'Total Revenue', value: `$${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'green' as const, change: '+12% from last month', changeType: 'positive' as const },
+      { title: 'Total Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'green' as const, change: '+12% from last month', changeType: 'positive' as const },
       { title: 'Occupancy Rate', value: `${stats.occupancyRate}%`, icon: TrendingUp, color: 'blue' as const, change: '+3% from last week', changeType: 'positive' as const },
       { title: 'Available Rooms', value: stats.availableRooms, icon: Home, color: 'purple' as const },
       { title: 'Guest Satisfaction', value: stats.customerSatisfaction, icon: Star, color: 'yellow' as const, change: '+0.2 from last month', changeType: 'positive' as const },
@@ -51,7 +82,7 @@ export default function Dashboard() {
 
       {/* Charts and Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <OccupancyChart rooms={mockRooms} />
+        <OccupancyChart rooms={rooms} />
         <ActivityLog />
       </div>
 

@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
-import { ChefHat, Clock, DollarSign, ShoppingBag, Plus, Search } from 'lucide-react';
-import { mockKitchenOrders } from '../../data/mockData';
+import { ChefHat, Clock, DollarSign, ShoppingBag, Plus, Search, XCircle } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
+import { KitchenOrder, KOTItem } from '../../types';
 
 export default function Restaurant() {
+  const { formatCurrency } = useSettings();
+  const { kitchenOrders, addKitchenOrder, updateKitchenOrder } = useAppData();
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'kitchen'>('orders');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderForm, setOrderForm] = useState({
+    roomNumber: '',
+    tableNumber: '',
+    orderType: 'dine-in' as KitchenOrder['orderType'],
+    waiterName: '',
+    itemName: '',
+    itemQuantity: 1,
+    itemPrice: 10,
+    estimatedTime: 20,
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -26,18 +41,58 @@ export default function Restaurant() {
     }
   };
 
-  const mockMenuItems = [
-    { id: '1', name: 'Grilled Chicken', category: 'main', price: 25, description: 'Tender grilled chicken with herbs', available: true },
-    { id: '2', name: 'Caesar Salad', category: 'appetizer', price: 15, description: 'Fresh romaine lettuce with caesar dressing', available: true },
-    { id: '3', name: 'Pasta Carbonara', category: 'main', price: 18, description: 'Classic Italian pasta with cream sauce', available: true },
-    { id: '4', name: 'Chocolate Cake', category: 'dessert', price: 12, description: 'Rich chocolate cake with vanilla ice cream', available: false },
-    { id: '5', name: 'Wine', category: 'beverage', price: 30, description: 'House wine selection', available: true },
-  ];
+  const filteredOrders = kitchenOrders.filter(order => {
+    const query = searchTerm.toLowerCase();
+    return order.orderNumber.toLowerCase().includes(query) || order.items.some(item => item.name.toLowerCase().includes(query));
+  });
 
-  const totalOrders = mockKitchenOrders.length;
-  const pendingOrders = mockKitchenOrders.filter(o => o.status === 'pending').length;
-  const totalRevenue = mockKitchenOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const avgPreparationTime = 22; // minutes
+  const totalOrders = kitchenOrders.length;
+  const pendingOrders = kitchenOrders.filter(o => o.status === 'pending').length;
+  const totalRevenue = kitchenOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const avgPreparationTime = kitchenOrders.length ? Math.round(kitchenOrders.reduce((sum, order) => sum + (order.estimatedTime || 20), 0) / kitchenOrders.length) : 20;
+
+  const handleCreateOrder = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const item: KOTItem = {
+      id: `item-${Date.now()}`,
+      name: orderForm.itemName,
+      quantity: orderForm.itemQuantity,
+      price: orderForm.itemPrice,
+      category: 'main',
+      status: 'pending',
+    };
+
+    const newOrder: Omit<KitchenOrder, 'id'> = {
+      orderNumber: `KOT-${String(kitchenOrders.length + 1).padStart(3, '0')}`,
+      roomNumber: orderForm.roomNumber || undefined,
+      tableNumber: orderForm.tableNumber || undefined,
+      orderType: orderForm.orderType,
+      items: [item],
+      totalAmount: item.quantity * item.price,
+      status: 'pending',
+      orderTime: new Date(),
+      estimatedTime: orderForm.estimatedTime,
+      waiterName: orderForm.waiterName || undefined,
+    };
+
+    addKitchenOrder(newOrder);
+    setShowOrderModal(false);
+    setOrderForm({
+      roomNumber: '',
+      tableNumber: '',
+      orderType: 'dine-in',
+      waiterName: '',
+      itemName: '',
+      itemQuantity: 1,
+      itemPrice: 10,
+      estimatedTime: 20,
+    });
+  };
+
+  const handleOrderStatusChange = (order: KitchenOrder, nextStatus: KitchenOrder['status']) => {
+    updateKitchenOrder({ ...order, status: nextStatus });
+  };
 
   return (
     <div className="space-y-6">
@@ -71,7 +126,7 @@ export default function Restaurant() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today's Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${totalRevenue}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalRevenue)}</p>
             </div>
             <DollarSign className="w-8 h-8 text-green-600" />
           </div>
@@ -137,7 +192,11 @@ export default function Restaurant() {
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors mt-4 md:mt-0">
+            <button
+              type="button"
+              onClick={() => setShowOrderModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors mt-4 md:mt-0"
+            >
               <Plus className="w-4 h-4" />
               <span>New Order</span>
             </button>
@@ -146,7 +205,7 @@ export default function Restaurant() {
           {/* Orders Tab */}
           {activeTab === 'orders' && (
             <div className="space-y-4">
-              {mockKitchenOrders.map((order) => (
+              {filteredOrders.map((order) => (
                 <div key={order.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -166,7 +225,7 @@ export default function Restaurant() {
                         {order.status}
                       </span>
                       <span className="text-lg font-bold text-gray-900 dark:text-white">
-                        ${order.totalAmount}
+                        {formatCurrency(order.totalAmount)}
                       </span>
                     </div>
                   </div>
@@ -203,17 +262,29 @@ export default function Restaurant() {
 
                   <div className="flex space-x-2">
                     {order.status === 'pending' && (
-                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => handleOrderStatusChange(order, 'preparing')}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                      >
                         Start Preparing
                       </button>
                     )}
                     {order.status === 'preparing' && (
-                      <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => handleOrderStatusChange(order, 'ready')}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                      >
                         Mark Ready
                       </button>
                     )}
                     {order.status === 'ready' && (
-                      <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => handleOrderStatusChange(order, 'served')}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                      >
                         Mark Served
                       </button>
                     )}
@@ -229,40 +300,8 @@ export default function Restaurant() {
           {/* Menu Tab */}
           {activeTab === 'menu' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockMenuItems.map((item) => (
-                  <div key={item.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{item.name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.available 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-                      }`}>
-                        {item.available ? 'Available' : 'Unavailable'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{item.description}</p>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-lg font-bold text-gray-900 dark:text-white">${item.price}</span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 ml-2 capitalize">{item.category}</span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
-                          Edit
-                        </button>
-                        <button className={`text-sm font-medium ${
-                          item.available 
-                            ? 'text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300'
-                            : 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300'
-                        }`}>
-                          {item.available ? 'Disable' : 'Enable'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                Add menu items here to keep your restaurant catalog user-driven and ready for live orders.
               </div>
             </div>
           )}

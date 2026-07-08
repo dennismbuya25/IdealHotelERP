@@ -1,6 +1,7 @@
 import React from 'react';
-import { Menu, Bell, Search, Sun, Moon } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, DollarSign } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export default function Header({ onToggleSidebar }: HeaderProps) {
   const { isDark, toggleTheme } = useTheme();
+  const { currencyCode, currencySymbol } = useSettings();
 
   return (
     <header className="border-b border-blue-100/80 bg-white/85 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/85">
@@ -39,6 +41,11 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           >
             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
+
+          <div className="flex items-center rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-slate-800 dark:text-blue-300">
+            <DollarSign className="mr-2 h-4 w-4" />
+            <span>{currencySymbol} ({currencyCode})</span>
+          </div>
 
           <button className="relative rounded-xl p-2 text-blue-700 transition-colors hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-slate-800">
             <Bell className="h-5 w-5" />

@@ -2,9 +2,17 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'receptionist' | 'housekeeping' | 'restaurant' | 'hr';
+  role: 'admin' | 'manager' | 'receptionist' | 'housekeeping' | 'restaurant' | 'hr' | 'guest';
   avatar?: string;
   isActive: boolean;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  details: string;
+  actor: string;
+  timestamp: Date;
 }
 
 export interface Room {

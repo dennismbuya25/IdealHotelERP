@@ -1,47 +1,45 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, PieChart, BarChart3, Calendar, Download, Plus } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
 
 export default function Finance() {
+  const { formatCurrency } = useSettings();
+  const { bookings, staff, kitchenOrders, inventoryItems } = useAppData();
   const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'expenses' | 'reports'>('overview');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
 
-  const mockFinancialData = {
-    totalRevenue: 125750,
-    totalExpenses: 78420,
-    netProfit: 47330,
-    profitMargin: 37.6,
-    monthlyGrowth: 12.5,
-    cashFlow: 89200,
+  const roomRevenue = bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+  const restaurantRevenue = kitchenOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalRevenue = roomRevenue + restaurantRevenue;
+  const totalExpenses = staff.reduce((sum, member) => sum + member.salary, 0) + inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0);
+  const netProfit = totalRevenue - totalExpenses;
+  const profitMargin = totalRevenue ? (netProfit / totalRevenue) * 100 : 0;
+  const financialData = {
+    totalRevenue,
+    totalExpenses,
+    netProfit,
+    profitMargin,
+    monthlyGrowth: totalRevenue ? 100 : 0,
+    cashFlow: netProfit,
   };
 
-  const mockRevenueStreams = [
-    { name: 'Room Revenue', amount: 85000, percentage: 67.6, color: 'bg-blue-500' },
-    { name: 'Restaurant', amount: 25000, percentage: 19.9, color: 'bg-green-500' },
-    { name: 'Bar & Beverages', amount: 8750, percentage: 7.0, color: 'bg-purple-500' },
-    { name: 'Other Services', amount: 7000, percentage: 5.5, color: 'bg-yellow-500' },
+  const revenueStreams = [
+    { name: 'Room Revenue', amount: roomRevenue, percentage: totalRevenue ? (roomRevenue / totalRevenue) * 100 : 0, color: 'bg-blue-500' },
+    { name: 'Restaurant', amount: restaurantRevenue, percentage: totalRevenue ? (restaurantRevenue / totalRevenue) * 100 : 0, color: 'bg-green-500' },
   ];
 
-  const mockExpenseCategories = [
-    { name: 'Staff Salaries', amount: 35000, percentage: 44.6, color: 'bg-red-500' },
-    { name: 'Utilities', amount: 12000, percentage: 15.3, color: 'bg-orange-500' },
-    { name: 'Maintenance', amount: 8500, percentage: 10.8, color: 'bg-indigo-500' },
-    { name: 'Supplies', amount: 15000, percentage: 19.1, color: 'bg-pink-500' },
-    { name: 'Marketing', amount: 4920, percentage: 6.3, color: 'bg-teal-500' },
-    { name: 'Other', amount: 3000, percentage: 3.8, color: 'bg-gray-500' },
+  const expenseCategories = [
+    { name: 'Staff Salaries', amount: staff.reduce((sum, member) => sum + member.salary, 0), percentage: totalExpenses ? (staff.reduce((sum, member) => sum + member.salary, 0) / totalExpenses) * 100 : 0, color: 'bg-red-500' },
+    { name: 'Inventory', amount: inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0), percentage: totalExpenses ? (inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0) / totalExpenses) * 100 : 0, color: 'bg-orange-500' },
   ];
 
-  const mockMonthlyData = [
-    { month: 'Jan', revenue: 110000, expenses: 75000, profit: 35000 },
-    { month: 'Feb', revenue: 115000, expenses: 76000, profit: 39000 },
-    { month: 'Mar', revenue: 120000, expenses: 77000, profit: 43000 },
-    { month: 'Apr', revenue: 125750, expenses: 78420, profit: 47330 },
-  ];
+  const monthlyData = [{ month: new Date().toLocaleDateString('en-US', { month: 'short' }), revenue: totalRevenue, expenses: totalExpenses, profit: netProfit }];
 
-  const mockTransactions = [
-    { id: 'TXN-001', type: 'income', description: 'Room Revenue - April', amount: 85000, date: new Date(), category: 'Room Revenue' },
-    { id: 'TXN-002', type: 'expense', description: 'Staff Salaries - April', amount: -35000, date: new Date(), category: 'Salaries' },
-    { id: 'TXN-003', type: 'income', description: 'Restaurant Revenue', amount: 25000, date: new Date(), category: 'Restaurant' },
-    { id: 'TXN-004', type: 'expense', description: 'Utility Bills', amount: -12000, date: new Date(), category: 'Utilities' },
+  const transactions = [
+    ...bookings.map((booking) => ({ id: booking.id, type: 'income' as const, description: `${booking.guestName} booking`, amount: booking.totalAmount, date: booking.checkIn, category: 'Room Revenue' })),
+    ...kitchenOrders.map((order) => ({ id: order.id, type: 'income' as const, description: `${order.orderNumber} restaurant order`, amount: order.totalAmount, date: order.orderTime, category: 'Restaurant' })),
+    ...staff.map((member) => ({ id: member.id, type: 'expense' as const, description: `${member.name} salary`, amount: -member.salary, date: member.joinDate, category: 'Salaries' })),
   ];
 
   return (
@@ -58,8 +56,8 @@ export default function Finance() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${mockFinancialData.totalRevenue.toLocaleString()}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{mockFinancialData.monthlyGrowth}% from last month</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalRevenue)}</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{financialData.monthlyGrowth}% from last month</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-600" />
           </div>
@@ -68,7 +66,7 @@ export default function Finance() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenses</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${mockFinancialData.totalExpenses.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalExpenses)}</p>
               <p className="text-sm text-red-600 dark:text-red-400 mt-1">+5.2% from last month</p>
             </div>
             <TrendingDown className="w-8 h-8 text-red-600" />
@@ -78,8 +76,8 @@ export default function Finance() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Net Profit</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${mockFinancialData.netProfit.toLocaleString()}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">{mockFinancialData.profitMargin}% margin</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.netProfit)}</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">{financialData.profitMargin.toFixed(1)}% margin</p>
             </div>
             <DollarSign className="w-8 h-8 text-blue-600" />
           </div>
@@ -88,7 +86,7 @@ export default function Finance() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Cash Flow</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${mockFinancialData.cashFlow.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.cashFlow)}</p>
               <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">Available balance</p>
             </div>
             <BarChart3 className="w-8 h-8 text-purple-600" />
@@ -169,7 +167,7 @@ export default function Finance() {
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                 <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Monthly Financial Trend</h4>
                 <div className="space-y-4">
-                  {mockMonthlyData.map((data, index) => (
+                  {monthlyData.map((data) => (
                     <div key={data.month} className="flex items-center space-x-4">
                       <div className="w-12 text-sm font-medium text-gray-600 dark:text-gray-400">{data.month}</div>
                       <div className="flex-1 space-y-1">
@@ -181,7 +179,7 @@ export default function Finance() {
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
                             className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full"
-                            style={{ width: `${(data.profit / data.revenue) * 100}%` }}
+                            style={{ width: `${data.revenue ? (data.profit / data.revenue) * 100 : 0}%` }}
                           />
                         </div>
                       </div>
@@ -197,7 +195,7 @@ export default function Finance() {
                   <button className="text-blue-600 dark:text-blue-400 hover:underline text-sm">View All</button>
                 </div>
                 <div className="space-y-3">
-                  {mockTransactions.map((transaction) => (
+                  {transactions.map((transaction) => (
                     <div key={transaction.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className={`w-3 h-3 rounded-full ${
@@ -214,7 +212,7 @@ export default function Finance() {
                             ? 'text-green-600 dark:text-green-400' 
                             : 'text-red-600 dark:text-red-400'
                         }`}>
-                          {transaction.type === 'income' ? '+' : ''}${Math.abs(transaction.amount).toLocaleString()}
+                          {transaction.type === 'income' ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{transaction.date.toLocaleDateString()}</p>
                       </div>
@@ -241,7 +239,7 @@ export default function Finance() {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Revenue by Source</h4>
                   <div className="space-y-4">
-                    {mockRevenueStreams.map((stream) => (
+                    {revenueStreams.map((stream) => (
                       <div key={stream.name} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium text-gray-700 dark:text-gray-300">{stream.name}</span>
@@ -274,15 +272,15 @@ export default function Finance() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Average Daily Revenue</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">${(mockFinancialData.totalRevenue / 30).toFixed(0)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalRevenue / 30)}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Revenue per Room</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">${(mockFinancialData.totalRevenue / 50).toFixed(0)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalRevenue / 50)}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Growth Rate</h5>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">+{mockFinancialData.monthlyGrowth}%</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">+{financialData.monthlyGrowth}%</p>
                 </div>
               </div>
             </div>
@@ -304,7 +302,7 @@ export default function Finance() {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Expense by Category</h4>
                   <div className="space-y-4">
-                    {mockExpenseCategories.map((category) => (
+                    {expenseCategories.map((category) => (
                       <div key={category.name} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium text-gray-700 dark:text-gray-300">{category.name}</span>
@@ -325,7 +323,7 @@ export default function Finance() {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Monthly Expense Trend</h4>
                   <div className="space-y-4">
-                    {mockMonthlyData.map((data) => (
+                    {monthlyData.map((data) => (
                       <div key={data.month} className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{data.month}</span>
                         <span className="text-sm text-gray-900 dark:text-white">${data.expenses.toLocaleString()}</span>
@@ -339,11 +337,11 @@ export default function Finance() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Expense Ratio</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{((mockFinancialData.totalExpenses / mockFinancialData.totalRevenue) * 100).toFixed(1)}%</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{financialData.totalRevenue ? ((financialData.totalExpenses / financialData.totalRevenue) * 100).toFixed(1) : '0.0'}%</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Cost per Room</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">${(mockFinancialData.totalExpenses / 50).toFixed(0)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalExpenses / 50)}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Budget Variance</h5>
@@ -371,16 +369,16 @@ export default function Finance() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</span>
-                      <span className="text-sm font-medium text-green-600 dark:text-green-400">${mockFinancialData.totalRevenue.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">{formatCurrency(financialData.totalRevenue)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</span>
-                      <span className="text-sm font-medium text-red-600 dark:text-red-400">${mockFinancialData.totalExpenses.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-red-600 dark:text-red-400">{formatCurrency(financialData.totalExpenses)}</span>
                     </div>
                     <hr className="border-gray-200 dark:border-gray-600" />
                     <div className="flex justify-between">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">Net Profit</span>
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">${mockFinancialData.netProfit.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatCurrency(financialData.netProfit)}</span>
                     </div>
                   </div>
                   <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm transition-colors">
@@ -407,7 +405,7 @@ export default function Finance() {
                     <hr className="border-gray-200 dark:border-gray-600" />
                     <div className="flex justify-between">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">Net Cash Flow</span>
-                      <span className="text-sm font-bold text-green-600 dark:text-green-400">${mockFinancialData.cashFlow.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatCurrency(financialData.cashFlow)}</span>
                     </div>
                   </div>
                   <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm transition-colors">

@@ -40,11 +40,12 @@ const menuItems: MenuItem[] = [
   { id: 'restaurant', label: 'Restaurant & KOT', icon: ChefHat, roles: ['admin', 'manager', 'restaurant'] },
   { id: 'inventory', label: 'Inventory', icon: Package, roles: ['admin', 'manager'] },
   { id: 'hr', label: 'Human Resources', icon: UserCheck, roles: ['admin', 'hr'] },
-  { id: 'payroll', label: 'Payroll', icon: DollarSign, roles: ['admin', 'manager', 'hr'] },
+  { id: 'payroll', label: 'Payroll', icon: ReceiptText, roles: ['admin', 'manager', 'hr'] },
   { id: 'finance', label: 'Finance', icon: DollarSign, roles: ['admin', 'manager'] },
   { id: 'crm', label: 'Guest CRM', icon: MessageSquare, roles: ['admin', 'manager', 'receptionist'] },
   { id: 'reports', label: 'Reports & Analytics', icon: FileText, roles: ['admin', 'manager'] },
   { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin'] },
+  { id: 'guestportal', label: 'Guest Portal', icon: Sparkles, roles: ['guest'] },
 ];
 
 export default function Sidebar({ activeModule, onModuleChange, isCollapsed }: SidebarProps) {
