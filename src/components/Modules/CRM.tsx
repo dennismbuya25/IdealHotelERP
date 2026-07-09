@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Star, MessageSquare, Gift, Mail, Phone, Plus, Search, Filter, Heart, Award } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
-import { Guest, Feedback } from '../../types';
+import { Communication, Guest, Feedback } from '../../types';
+
+const defaultCommunication = {
+  type: 'campaign' as Communication['type'],
+  subject: '',
+  recipient: '',
+  body: '',
+  status: 'draft' as Communication['status'],
+  category: '',
+};
 
 export default function CRM() {
-  const { guests } = useAppData();
+  const { guests, communications: appCommunications, addCommunication, updateCommunication } = useAppData();
   const feedback: Feedback[] = [];
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'guests' | 'feedback' | 'loyalty' | 'communications'>('guests');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [communications, setCommunications] = useState<Communication[]>([]);
+  const [isCommunicationModalOpen, setIsCommunicationModalOpen] = useState(false);
+  const [editingCommunication, setEditingCommunication] = useState<Communication | null>(null);
+  const [communicationForm, setCommunicationForm] = useState(defaultCommunication);
+
+  useEffect(() => {
+    setCommunications(appCommunications);
+  }, [appCommunications]);
 
   const filteredGuests = guests.filter(guest =>
     guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -17,8 +34,62 @@ export default function CRM() {
 
   const totalGuests = guests.length;
   const vipGuests = guests.filter(g => g.loyaltyPoints > 1000).length;
-  const avgSatisfaction = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
+  const avgSatisfaction = feedback.length ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0;
   const totalLoyaltyPoints = guests.reduce((sum, g) => sum + g.loyaltyPoints, 0);
+
+  const openCommunicationModal = (communication?: Communication) => {
+    if (communication) {
+      setEditingCommunication(communication);
+      setCommunicationForm({
+        type: communication.type,
+        subject: communication.subject,
+        recipient: communication.recipient,
+        body: communication.body,
+        status: communication.status,
+        category: communication.category || '',
+      });
+    } else {
+      setEditingCommunication(null);
+      setCommunicationForm(defaultCommunication);
+    }
+    setIsCommunicationModalOpen(true);
+  };
+
+  const saveCommunication = (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = {
+      ...communicationForm,
+      recipient: communicationForm.recipient || 'All Guests',
+      status: communicationForm.status || 'draft',
+      category: communicationForm.category || 'CRM',
+    };
+
+    if (editingCommunication) {
+      updateCommunication({
+        ...editingCommunication,
+        ...payload,
+        updatedAt: new Date(),
+      });
+    } else {
+      addCommunication(payload);
+    }
+
+    setIsCommunicationModalOpen(false);
+    setEditingCommunication(null);
+    setCommunicationForm(defaultCommunication);
+  };
+
+  const openTemplate = (type: Communication['type'], subject: string, body: string, category: string) => {
+    setEditingCommunication(null);
+    setCommunicationForm({
+      ...defaultCommunication,
+      type,
+      subject,
+      body,
+      category,
+    });
+    setIsCommunicationModalOpen(true);
+  };
 
   const getLoyaltyTier = (points: number) => {
     if (points >= 2000) return { tier: 'Platinum', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300' };
@@ -34,7 +105,6 @@ export default function CRM() {
   };
 
   const loyaltyPrograms = [];
-  const communications: Array<{ id: string; type: string; subject: string; recipient: string; date: Date; status: string; }> = [];
 
   return (
     <div className="space-y-6">
@@ -419,7 +489,10 @@ export default function CRM() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Guest Communications</h3>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <button
+                  onClick={() => openCommunicationModal()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                >
                   <Plus className="w-4 h-4" />
                   <span>New Campaign</span>
                 </button>
@@ -431,7 +504,10 @@ export default function CRM() {
                   <Mail className="w-8 h-8 text-blue-600 mb-3" />
                   <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Welcome Email</h4>
                   <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">Automated welcome message for new guests</p>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                  <button
+                    onClick={() => openTemplate('template', 'Welcome to Snowy Lodge!', 'Hello {{name}}, welcome to our hotel. We hope you enjoy your stay.', 'Welcome')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                  >
                     Edit Template
                   </button>
                 </div>
@@ -439,7 +515,10 @@ export default function CRM() {
                   <MessageSquare className="w-8 h-8 text-green-600 mb-3" />
                   <h4 className="font-medium text-green-800 dark:text-green-300 mb-2">Birthday Wishes</h4>
                   <p className="text-sm text-green-600 dark:text-green-400 mb-4">Special birthday offers and greetings</p>
-                  <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                  <button
+                    onClick={() => openTemplate('template', 'Happy Birthday from Snowy Lodge', 'Dear {{name}}, happy birthday! Enjoy a special reward on your next stay.', 'Birthday')}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                  >
                     Edit Template
                   </button>
                 </div>
@@ -447,7 +526,10 @@ export default function CRM() {
                   <Heart className="w-8 h-8 text-purple-600 mb-3" />
                   <h4 className="font-medium text-purple-800 dark:text-purple-300 mb-2">Loyalty Rewards</h4>
                   <p className="text-sm text-purple-600 dark:text-purple-400 mb-4">Loyalty program updates and rewards</p>
-                  <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                  <button
+                    onClick={() => openTemplate('template', 'Loyalty Reward Update', 'Hi {{name}}, as a valued member you are eligible for extra rewards.', 'Loyalty')}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                  >
                     Edit Template
                   </button>
                 </div>
@@ -482,7 +564,7 @@ export default function CRM() {
                         <tr key={comm.id} className="hover:bg-gray-50 dark:hover:bg-gray-600">
                           <td className="px-4 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              {comm.type === 'email' ? (
+                              {comm.type === 'campaign' ? (
                                 <Mail className="w-4 h-4 text-blue-600 mr-2" />
                               ) : (
                                 <MessageSquare className="w-4 h-4 text-green-600 mr-2" />
@@ -497,7 +579,7 @@ export default function CRM() {
                             {comm.recipient}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {comm.date.toLocaleDateString()}
+                            {comm.createdAt?.toLocaleDateString() || 'N/A'}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -521,6 +603,73 @@ export default function CRM() {
         </div>
       </div>
 
+      {isCommunicationModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{editingCommunication ? 'Edit Communication' : 'New Communication'}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Create or update campaigns and templates.</p>
+              </div>
+              <button type="button" onClick={() => setIsCommunicationModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">✕</button>
+            </div>
+            <form onSubmit={saveCommunication} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  value={communicationForm.type}
+                  onChange={(e) => setCommunicationForm(prev => ({ ...prev, type: e.target.value as Communication['type'] }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="campaign">Campaign</option>
+                  <option value="template">Template</option>
+                </select>
+                <input
+                  value={communicationForm.subject}
+                  onChange={(e) => setCommunicationForm(prev => ({ ...prev, subject: e.target.value }))}
+                  placeholder="Subject"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  value={communicationForm.recipient}
+                  onChange={(e) => setCommunicationForm(prev => ({ ...prev, recipient: e.target.value }))}
+                  placeholder="Recipient"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <input
+                  value={communicationForm.category}
+                  onChange={(e) => setCommunicationForm(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Category"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <textarea
+                value={communicationForm.body}
+                onChange={(e) => setCommunicationForm(prev => ({ ...prev, body: e.target.value }))}
+                placeholder="Message body"
+                rows={6}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  value={communicationForm.status}
+                  onChange={(e) => setCommunicationForm(prev => ({ ...prev, status: e.target.value as Communication['status'] }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="sent">Sent</option>
+                </select>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => { setIsCommunicationModalOpen(false); setEditingCommunication(null); setCommunicationForm(defaultCommunication); }} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">Save</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Add Guest Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useEffect, ReactNode } from 'react';
-import { AuditLog, Booking, Expense, Guest, Integration, InventoryItem, Invoice, KitchenOrder, Room, Staff, User } from '../types';
+import { AuditLog, Booking, Communication, Expense, Guest, Integration, InventoryItem, Invoice, KitchenOrder, Room, Staff, User } from '../types';
 
 export interface RotaAssignment {
   id: string;
@@ -22,6 +22,7 @@ interface AppDataContextType {
   invoices: Invoice[];
   expenses: Expense[];
   integrations: Integration[];
+  communications: Communication[];
   permissionProfiles: Record<string, string[]>;
   addRoom: (room: Omit<Room, 'id'>) => Room;
   updateRoom: (room: Room) => void;
@@ -47,6 +48,8 @@ interface AppDataContextType {
   addInvoice: (invoice: Omit<Invoice, 'id'>) => Invoice;
   addExpense: (expense: Omit<Expense, 'id'>) => Expense;
   addIntegration: (integration: Omit<Integration, 'id'>) => Integration;
+  addCommunication: (communication: Omit<Communication, 'id' | 'createdAt' | 'updatedAt'>) => Communication;
+  updateCommunication: (communication: Communication) => void;
 }
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname)
@@ -64,6 +67,7 @@ function hydrateData(data: any) {
     guests: (data.guests || []).map((guest: Guest) => ({
       ...guest,
       lastVisit: guest.lastVisit ? new Date(guest.lastVisit as unknown as string) : undefined,
+      createdAt: guest.createdAt ? new Date(guest.createdAt as unknown as string) : undefined,
     })),
     staff: (data.staff || []).map((member: Staff) => ({
       ...member,
@@ -82,6 +86,11 @@ function hydrateData(data: any) {
     inventoryItems: (data.inventoryItems || []).map((item: InventoryItem) => ({
       ...item,
       lastUpdated: item.lastUpdated ? new Date(item.lastUpdated as unknown as string) : new Date(),
+    })),
+    communications: (data.communications || []).map((comm: Communication) => ({
+      ...comm,
+      createdAt: comm.createdAt ? new Date(comm.createdAt as unknown as string) : new Date(),
+      updatedAt: comm.updatedAt ? new Date(comm.updatedAt as unknown as string) : new Date(),
     })),
     rooms: (data.rooms || []).map((room: Room) => ({
       ...room,
@@ -119,6 +128,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     invoices: [],
     expenses: [],
     integrations: [],
+    communications: [],
     permissionProfiles: {},
   }));
 
@@ -143,6 +153,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           invoices: data.invoices || [],
           expenses: data.expenses || [],
           integrations: data.integrations || [],
+          communications: data.communications || [],
           permissionProfiles: data.permissionProfiles || {},
         }));
       } catch (error) {
@@ -225,6 +236,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const addGuest = (guest: Omit<Guest, 'id'>) => {
     const createdGuest: Guest = {
       id: `G-${Date.now()}`,
+      createdAt: new Date(),
       ...guest,
     };
     setAppData(prev => ({ ...prev, guests: [createdGuest, ...prev.guests] }));
@@ -362,6 +374,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return createdIntegration;
   };
 
+  const addCommunication = (communication: Omit<Communication, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const createdCommunication: Communication = {
+      id: `comm-${Date.now()}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...communication,
+    };
+    setAppData(prev => ({ ...prev, communications: [createdCommunication, ...prev.communications] }));
+    void syncMutation('communication', 'create', createdCommunication).catch(console.error);
+    return createdCommunication;
+  };
+
+  const updateCommunication = (communication: Communication) => {
+    setAppData(prev => ({
+      ...prev,
+      communications: prev.communications.map(existing => existing.id === communication.id ? communication : existing),
+    }));
+    void syncMutation('communication', 'update', communication).catch(console.error);
+  };
+
   const value = useMemo(() => ({
     rooms: appData.rooms,
     bookings: appData.bookings,
@@ -375,6 +407,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     invoices: appData.invoices,
     expenses: appData.expenses,
     integrations: appData.integrations,
+    communications: appData.communications,
     permissionProfiles: appData.permissionProfiles,
     addRoom,
     updateRoom,
@@ -400,9 +433,56 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addInvoice,
     addExpense,
     addIntegration,
-  }), [appData]);
+    addCommunication,
+    updateCommunication,
+  }), [
+    appData.rooms,
+    appData.bookings,
+    appData.guests,
+    appData.staff,
+    appData.kitchenOrders,
+    appData.inventoryItems,
+    appData.rotaAssignments,
+    appData.users,
+    appData.auditLogs,
+    appData.invoices,
+    appData.expenses,
+    appData.integrations,
+    appData.communications,
+    appData.permissionProfiles,
+    addRoom,
+    updateRoom,
+    deleteRoom,
+    addBooking,
+    updateBooking,
+    updateBookingStatus,
+    deleteBooking,
+    addGuest,
+    updateGuest,
+    addStaff,
+    updateStaff,
+    deleteStaff,
+    addKitchenOrder,
+    updateKitchenOrder,
+    addInventoryItem,
+    updateInventoryItem,
+    addRotaAssignment,
+    addUser,
+    addAuditLog,
+    updateUser,
+    updatePermissionProfile,
+    addInvoice,
+    addExpense,
+    addIntegration,
+    addCommunication,
+    updateCommunication,
+  ]);
 
-  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
+  return (
+    <AppDataContext.Provider value={value}>
+      {children}
+    </AppDataContext.Provider>
+  );
 }
 
 export function useAppData() {

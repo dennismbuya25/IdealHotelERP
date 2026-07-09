@@ -36,6 +36,7 @@ CREATE TABLE rooms (
 CREATE TABLE guests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
     phone VARCHAR(20),
     id_type VARCHAR(20) CHECK (id_type IN ('passport', 'national-id', 'driving-license')),
     id_number VARCHAR(50),
@@ -152,7 +153,8 @@ CREATE TABLE attendance (
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_id UUID REFERENCES bookings(id),
-    invoice_number VARCHAR(20) UNIQUE NOT NULL,
+    guest_name TEXT,
+    items JSONB DEFAULT '[]'::JSONB,
     subtotal DECIMAL(10,2) NOT NULL,
     tax DECIMAL(10,2) NOT NULL DEFAULT 0,
     discount DECIMAL(10,2) NOT NULL DEFAULT 0,

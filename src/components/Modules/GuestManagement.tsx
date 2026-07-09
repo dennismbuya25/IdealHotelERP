@@ -15,11 +15,12 @@ const emptyGuestForm = {
 };
 
 export default function GuestManagement() {
-  const { bookings: appBookings, guests: appGuests, rooms: appRooms, addGuest, updateBooking } = useAppData();
+  const { bookings: appBookings, guests: appGuests, rooms: appRooms, addGuest, updateGuest, updateBooking } = useAppData();
   const [activeTab, setActiveTab] = useState<'checkin' | 'checkout' | 'profiles' | 'preferences'>('checkin');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const bookings = appBookings;
   const guests = appGuests;
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -82,11 +83,25 @@ export default function GuestManagement() {
     setFeedback('Stay extended by one day.');
   };
 
+  const handleEditGuest = (guest: Guest) => {
+    setEditingGuest(guest);
+    setNewGuest({
+      name: guest.name,
+      email: guest.email,
+      phone: guest.phone,
+      idType: guest.idType,
+      idNumber: guest.idNumber,
+      address: guest.address,
+      preferences: guest.preferences.join(', '),
+      notes: guest.notes || '',
+    });
+    setShowAddModal(true);
+  };
+
   const handleAddGuest = (event: React.FormEvent) => {
     event.preventDefault();
 
-    const guestToAdd: Guest = {
-      id: `G-${Date.now()}`,
+    const guestPayload: Omit<Guest, 'id'> = {
       name: newGuest.name,
       email: newGuest.email,
       phone: newGuest.phone,
@@ -99,11 +114,23 @@ export default function GuestManagement() {
       notes: newGuest.notes,
     };
 
-    addGuest(guestToAdd);
-    setSelectedGuest(guestToAdd);
+    if (editingGuest) {
+      const updatedGuest: Guest = {
+        ...editingGuest,
+        ...guestPayload,
+      };
+      updateGuest(updatedGuest);
+      setSelectedGuest(updatedGuest);
+      setFeedback(`Guest profile updated for ${updatedGuest.name}.`);
+    } else {
+      const guestToAdd = addGuest(guestPayload);
+      setSelectedGuest(guestToAdd);
+      setFeedback(`Guest profile added for ${guestToAdd.name}.`);
+    }
+
     setShowAddModal(false);
+    setEditingGuest(null);
     setNewGuest(emptyGuestForm);
-    setFeedback(`Guest profile added for ${guestToAdd.name}.`);
   };
 
   return (
@@ -376,7 +403,11 @@ export default function GuestManagement() {
                     />
                   </div>
                   <button
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => {
+                      setEditingGuest(null);
+                      setNewGuest(emptyGuestForm);
+                      setShowAddModal(true);
+                    }}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
@@ -465,107 +496,19 @@ export default function GuestManagement() {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">Guest Preferences & History</h3>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Guest Preferences */}
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Common Preferences</h4>
-                  <div className="space-y-3">
-                    {[
-                      { preference: 'Non-smoking rooms', count: 85, percentage: 68 },
-                      { preference: 'High floor', count: 72, percentage: 58 },
-                      { preference: 'Late check-out', count: 64, percentage: 51 },
-                      { preference: 'Ocean view', count: 45, percentage: 36 },
-                      { preference: 'Extra pillows', count: 38, percentage: 30 },
-                      { preference: 'Quiet room', count: 29, percentage: 23 },
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{item.preference}</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">{item.count}</span>
-                          <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${item.percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Guest preference insights will display here when real aggregated data is available.</p>
                 </div>
 
-                {/* Booking History Trends */}
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Booking Trends</h4>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Average stay duration</span>
-                      <span className="text-lg font-bold text-blue-600 dark:text-blue-400">3.2 nights</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Repeat guest rate</span>
-                      <span className="text-lg font-bold text-green-600 dark:text-green-400">71%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Average booking value</span>
-                      <span className="text-lg font-bold text-purple-600 dark:text-purple-400">$485</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Peak booking season</span>
-                      <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">Summer</span>
-                    </div>
-                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Booking trends will appear here once real analytics data is connected.</p>
                 </div>
 
-                {/* VIP Guest Services */}
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">VIP Guest Services</h4>
-                  <div className="space-y-3">
-                    {[
-                      'Complimentary room upgrade',
-                      'Welcome amenities',
-                      'Priority check-in/out',
-                      'Concierge services',
-                      'Late check-out (until 2 PM)',
-                      'Complimentary breakfast',
-                    ].map((service, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <Gift className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{service}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Guest Feedback Summary */}
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 lg:col-span-2">
                   <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Feedback Summary</h4>
-                  <div className="space-y-3">
-                    {[
-                      { category: 'Service Quality', rating: 4.8, color: 'text-green-600 dark:text-green-400' },
-                      { category: 'Room Cleanliness', rating: 4.7, color: 'text-blue-600 dark:text-blue-400' },
-                      { category: 'Food & Beverage', rating: 4.5, color: 'text-purple-600 dark:text-purple-400' },
-                      { category: 'Value for Money', rating: 4.3, color: 'text-yellow-600 dark:text-yellow-400' },
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{item.category}</span>
-                        <div className="flex items-center space-x-2">
-                          <span className={`text-lg font-bold ${item.color}`}>{item.rating}</span>
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < Math.floor(item.rating)
-                                    ? 'text-yellow-400 fill-current'
-                                    : 'text-gray-300 dark:text-gray-600'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Feedback summary will populate when guest feedback metrics are available from live data.</p>
                 </div>
               </div>
             </div>
@@ -577,11 +520,11 @@ export default function GuestManagement() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Guest</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{editingGuest ? 'Edit Guest' : 'Add New Guest'}</h3>
             <form onSubmit={handleAddGuest} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="text" value={newGuest.name} onChange={(e) => setNewGuest(prev => ({ ...prev, name: e.target.value }))} placeholder="Full name" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
-                <input type="email" value={newGuest.email} onChange={(e) => setNewGuest(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
+                <input type="email" value={newGuest.email} onChange={(e) => setNewGuest(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
                 <input type="tel" value={newGuest.phone} onChange={(e) => setNewGuest(prev => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />
                 <select value={newGuest.idType} onChange={(e) => setNewGuest(prev => ({ ...prev, idType: e.target.value as Guest['idType'] }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                   <option value="passport">Passport</option>
@@ -595,7 +538,7 @@ export default function GuestManagement() {
               <textarea value={newGuest.notes} onChange={(e) => setNewGuest(prev => ({ ...prev, notes: e.target.value }))} placeholder="Special notes" rows={2} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
               <div className="flex space-x-3 pt-4">
                 <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Add Guest</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">{editingGuest ? 'Save Changes' : 'Add Guest'}</button>
               </div>
             </form>
           </div>
@@ -607,15 +550,26 @@ export default function GuestManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Guest Profile</h3>
-              <button
-                onClick={() => setSelectedGuest(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                ✕
-              </button>
-            </div>
-            
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Guest Profile</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">View and edit the selected guest profile.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => selectedGuest && handleEditGuest(selectedGuest)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={() => setSelectedGuest(null)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Guest Info */}
               <div className="lg:col-span-1">
@@ -653,7 +607,7 @@ export default function GuestManagement() {
               
               {/* Guest Stats & Preferences */}
               <div className="lg:col-span-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{selectedGuest.loyaltyPoints}</p>
                     <p className="text-sm text-blue-600 dark:text-blue-400">Loyalty Points</p>
@@ -661,10 +615,6 @@ export default function GuestManagement() {
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">{selectedGuest.totalStays}</p>
                     <p className="text-sm text-green-600 dark:text-green-400">Total Stays</p>
-                  </div>
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">4.8</p>
-                    <p className="text-sm text-purple-600 dark:text-purple-400">Avg Rating</p>
                   </div>
                 </div>
                 
@@ -695,12 +645,14 @@ export default function GuestManagement() {
                       <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <span className="text-sm text-gray-900 dark:text-white">Last visit</span>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {selectedGuest.lastVisit?.toLocaleDateString()}
+                          {selectedGuest.lastVisit?.toLocaleDateString() || 'N/A'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <span className="text-sm text-gray-900 dark:text-white">Member since</span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">January 2023</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {selectedGuest.createdAt?.toLocaleDateString() || 'N/A'}
+                        </span>
                       </div>
                     </div>
                   </div>

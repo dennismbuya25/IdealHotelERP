@@ -55,13 +55,26 @@ const ensureBusinessTables = async () => {
       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS communications (
+      id TEXT PRIMARY KEY,
+      type TEXT,
+      subject TEXT,
+      recipient TEXT,
+      body TEXT,
+      status TEXT,
+      category TEXT,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 };
 
 router.get('/', async (req, res) => {
   try {
     await ensureBusinessTables();
 
-    const [roomsResult, bookingsResult, guestsResult, staffResult, inventoryResult, kitchenOrdersResult, usersResult, activityLogsResult, invoicesResult, expensesResult, integrationsResult] = await Promise.all([
+    const [roomsResult, bookingsResult, guestsResult, staffResult, inventoryResult, kitchenOrdersResult, usersResult, activityLogsResult, invoicesResult, expensesResult, integrationsResult, communicationsResult] = await Promise.all([
       pool.query('SELECT id, number, type, status, price, floor, amenities, last_cleaned, assigned_cleaner, created_at, updated_at FROM rooms ORDER BY number'),
       pool.query(`
         SELECT 
@@ -77,6 +90,7 @@ router.get('/', async (req, res) => {
           b.updated_at,
           b.room_id,
           g.name AS guest_name,
+          g.email AS guest_email,
           g.phone AS guest_phone,
           g.address AS guest_address
         FROM bookings b
@@ -103,14 +117,15 @@ router.get('/', async (req, res) => {
       pool.query('SELECT id, booking_id, guest_name, items, subtotal, tax, discount, total, payment_method, payment_status, issue_date, due_date FROM invoices ORDER BY issue_date DESC'),
       pool.query('SELECT id, description, category, amount, payment_method, date, notes FROM expenses ORDER BY date DESC'),
       pool.query('SELECT id, name, type, status, description, created_at FROM integrations ORDER BY created_at DESC'),
+      pool.query('SELECT id, type, subject, recipient, body, status, category, created_at, updated_at FROM communications ORDER BY created_at DESC'),
     ]);
 
     const response = {
-      rooms: roomsResult.rows.map((room) => ({ ...room, lastCleaned: parseDate(room.last_cleaned), createdAt: parseDate(room.created_at), updatedAt: parseDate(room.updated_at) })),
+      rooms: roomsResult.rows.map((room) => ({ ...room, price: Number(room.price || 0), lastCleaned: parseDate(room.last_cleaned), createdAt: parseDate(room.created_at), updatedAt: parseDate(room.updated_at) })),
       bookings: bookingsResult.rows.map((booking) => ({
         id: booking.id,
         guestName: booking.guest_name || 'Guest',
-        guestEmail: '',
+        guestEmail: booking.guest_email || '',
         guestPhone: booking.guest_phone || '',
         roomId: booking.room_id || '',
         checkIn: parseDate(booking.check_in),
@@ -133,6 +148,7 @@ router.get('/', async (req, res) => {
         loyaltyPoints: Number(guest.loyalty_points || 0),
         totalStays: Number(guest.total_stays || 0),
         lastVisit: parseDate(guest.last_visit),
+        createdAt: parseDate(guest.created_at),
         notes: guest.notes || '',
       })),
       staff: staffResult.rows.map((member) => ({
@@ -217,6 +233,17 @@ router.get('/', async (req, res) => {
         status: integration.status || 'pending',
         description: integration.description || '',
       })),
+      communications: communicationsResult.rows.map((comm) => ({
+        id: comm.id,
+        type: comm.type || 'campaign',
+        subject: comm.subject || '',
+        recipient: comm.recipient || '',
+        body: comm.body || '',
+        status: comm.status || 'draft',
+        category: comm.category || '',
+        createdAt: parseDate(comm.created_at),
+        updatedAt: parseDate(comm.updated_at),
+      })),
       permissionProfiles: defaultPermissionProfiles,
     };
 
@@ -285,16 +312,16 @@ router.post('/', authenticateToken, async (req, res) => {
       case 'guest': {
         if (action === 'create') {
           const result = await pool.query(
-            'INSERT INTO guests (name, email, phone, id_type, id_number, address, preferences, loyalty_points, total_stays, last_visit, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-            [payload.name, payload.email || '', payload.phone || '', payload.idType || 'passport', payload.idNumber || '', payload.address || '', payload.preferences || [], payload.loyaltyPoints || 0, payload.totalStays || 0, payload.lastVisit || null, payload.notes || '']
+            'INSERT INTO guests (name, email, phone, id_type, id_number, address, preferences, loyalty_points, total_stays, last_visit, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+            [payload.name, payload.email || '', payload.phone || '', payload.idType || 'passport', payload.idNumber || '', payload.address || '', payload.preferences || [], payload.loyaltyPoints || 0, payload.totalStays || 0, payload.lastVisit || null, payload.notes || '', payload.createdAt || new Date()]
           );
           return res.status(201).json({ record: result.rows[0] });
         }
         if (action === 'update') {
           const { id, ...rest } = payload;
           const result = await pool.query(
-            'UPDATE guests SET name = COALESCE($1, name), email = COALESCE($2, email), phone = COALESCE($3, phone), notes = COALESCE($4, notes), updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *',
-            [rest.name, rest.email, rest.phone, rest.notes, id]
+            'UPDATE guests SET name = COALESCE($1, name), email = COALESCE($2, email), phone = COALESCE($3, phone), id_type = COALESCE($4, id_type), id_number = COALESCE($5, id_number), address = COALESCE($6, address), preferences = COALESCE($7, preferences), notes = COALESCE($8, notes), updated_at = CURRENT_TIMESTAMP WHERE id = $9 RETURNING *',
+            [rest.name, rest.email, rest.phone, rest.idType, rest.idNumber, rest.address, rest.preferences || [], rest.notes, id]
           );
           return res.json({ record: result.rows[0] });
         }
@@ -416,6 +443,24 @@ router.post('/', authenticateToken, async (req, res) => {
             [payload.id, payload.name, payload.type, payload.status || 'pending', payload.description || '']
           );
           return res.status(201).json({ record: result.rows[0] });
+        }
+        break;
+      }
+      case 'communication': {
+        if (action === 'create') {
+          const result = await pool.query(
+            'INSERT INTO communications (id, type, subject, recipient, body, status, category, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            [payload.id, payload.type, payload.subject || '', payload.recipient || '', payload.body || '', payload.status || 'draft', payload.category || '', payload.createdAt || new Date(), payload.updatedAt || new Date()]
+          );
+          return res.status(201).json({ record: result.rows[0] });
+        }
+        if (action === 'update') {
+          const { id, ...rest } = payload;
+          const result = await pool.query(
+            'UPDATE communications SET type = COALESCE($1, type), subject = COALESCE($2, subject), recipient = COALESCE($3, recipient), body = COALESCE($4, body), status = COALESCE($5, status), category = COALESCE($6, category), updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *',
+            [rest.type, rest.subject, rest.recipient, rest.body, rest.status, rest.category, id]
+          );
+          return res.json({ record: result.rows[0] });
         }
         break;
       }

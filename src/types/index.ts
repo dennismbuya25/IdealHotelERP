@@ -114,7 +114,20 @@ export interface Guest {
   loyaltyPoints: number;
   totalStays: number;
   lastVisit?: Date;
+  createdAt?: Date;
   notes?: string;
+}
+
+export interface Communication {
+  id: string;
+  type: 'campaign' | 'template';
+  subject: string;
+  recipient: string;
+  body: string;
+  status: 'draft' | 'sent' | 'active';
+  category?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Invoice {
