@@ -1,18 +1,23 @@
 import { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, PieChart, BarChart3, Calendar, Download, Plus } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, PieChart, BarChart3, Calendar, Download, Plus, XCircle } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAppData } from '../../contexts/AppDataContext';
+import { Expense } from '../../types';
 
 export default function Finance() {
   const { formatCurrency } = useSettings();
-  const { bookings, staff, kitchenOrders, inventoryItems } = useAppData();
+  const { bookings, staff, kitchenOrders, inventoryItems, expenses, addExpense, addAuditLog } = useAppData();
   const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'expenses' | 'reports'>('overview');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({ description: '', category: 'operations' as Expense['category'], amount: '', paymentMethod: 'cash' as Expense['paymentMethod'], notes: '' });
 
   const roomRevenue = bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
   const restaurantRevenue = kitchenOrders.reduce((sum, order) => sum + order.totalAmount, 0);
   const totalRevenue = roomRevenue + restaurantRevenue;
-  const totalExpenses = staff.reduce((sum, member) => sum + member.salary, 0) + inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0);
+  const inventoryExpense = inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0);
+  const recordedExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = staff.reduce((sum, member) => sum + member.salary, 0) + inventoryExpense + recordedExpenses;
   const netProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue ? (netProfit / totalRevenue) * 100 : 0;
   const financialData = {
@@ -40,7 +45,24 @@ export default function Finance() {
     ...bookings.map((booking) => ({ id: booking.id, type: 'income' as const, description: `${booking.guestName} booking`, amount: booking.totalAmount, date: booking.checkIn, category: 'Room Revenue' })),
     ...kitchenOrders.map((order) => ({ id: order.id, type: 'income' as const, description: `${order.orderNumber} restaurant order`, amount: order.totalAmount, date: order.orderTime, category: 'Restaurant' })),
     ...staff.map((member) => ({ id: member.id, type: 'expense' as const, description: `${member.name} salary`, amount: -member.salary, date: member.joinDate, category: 'Salaries' })),
+    ...expenses.map((expense) => ({ id: expense.id, type: 'expense' as const, description: expense.description, amount: -expense.amount, date: expense.date, category: expense.category })),
   ];
+
+  const handleAddExpense = (event: React.FormEvent) => {
+    event.preventDefault();
+    const amount = Number(expenseForm.amount);
+    const createdExpense = addExpense({
+      description: expenseForm.description,
+      category: expenseForm.category,
+      amount,
+      paymentMethod: expenseForm.paymentMethod,
+      date: new Date(),
+      notes: expenseForm.notes,
+    });
+    addAuditLog({ action: 'expense_created', details: `Recorded expense ${createdExpense.id}.`, actor: 'Administrator' });
+    setShowExpenseModal(false);
+    setExpenseForm({ description: '', category: 'operations', amount: '', paymentMethod: 'cash', notes: '' });
+  };
 
   return (
     <div className="space-y-6">
@@ -291,7 +313,7 @@ export default function Finance() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Expense Tracking</h3>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <button type="button" onClick={() => setShowExpenseModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
                   <Plus className="w-4 h-4" />
                   <span>Add Expense</span>
                 </button>
@@ -463,6 +485,42 @@ export default function Finance() {
           )}
         </div>
       </div>
+
+      {showExpenseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add Expense</h3>
+              <button type="button" onClick={() => setShowExpenseModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={handleAddExpense} className="space-y-4">
+              <input value={expenseForm.description} onChange={(e) => setExpenseForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+              <select value={expenseForm.category} onChange={(e) => setExpenseForm(prev => ({ ...prev, category: e.target.value as Expense['category'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                <option value="operations">Operations</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="supplies">Supplies</option>
+                <option value="staff">Staff</option>
+                <option value="marketing">Marketing</option>
+                <option value="other">Other</option>
+              </select>
+              <input type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))} placeholder="Amount" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+              <select value={expenseForm.paymentMethod} onChange={(e) => setExpenseForm(prev => ({ ...prev, paymentMethod: e.target.value as Expense['paymentMethod'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mpesa">Mpesa</option>
+                <option value="bank-transfer">Bank Transfer</option>
+              </select>
+              <textarea value={expenseForm.notes} onChange={(e) => setExpenseForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Notes" className="w-full rounded-lg border border-gray-300 px-3 py-2" rows={3} />
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowExpenseModal(false)} className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700">Cancel</button>
+                <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-white">Save Expense</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,43 +1,33 @@
 import React, { useState } from 'react';
-import { CreditCard, Receipt, DollarSign, FileText, Plus, Search, Download } from 'lucide-react';
-import { mockBookings } from '../../data/mockData';
+import { CreditCard, Receipt, DollarSign, FileText, Plus, Search, Download, XCircle } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useAppData } from '../../contexts/AppDataContext';
+import { Invoice } from '../../types';
 
 export default function Billing() {
   const { formatCurrency } = useSettings();
+  const { bookings, invoices: storedInvoices, addInvoice, addAuditLog } = useAppData();
   const [activeTab, setActiveTab] = useState<'invoices' | 'payments' | 'reports'>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({ guestName: '', bookingId: '', amount: '', paymentStatus: 'pending' as Invoice['paymentStatus'], paymentMethod: 'cash' as Invoice['paymentMethod'] });
 
-  const mockInvoices = mockBookings.map((booking, index) => ({
+  const invoices = storedInvoices.length > 0 ? storedInvoices : bookings.map((booking, index) => ({
     id: `INV-${String(index + 1).padStart(4, '0')}`,
     bookingId: booking.id,
     guestName: booking.guestName,
-    amount: booking.totalAmount,
-    status: booking.paymentStatus,
+    items: [{ description: 'Room charge', quantity: 1, unitPrice: booking.totalAmount, total: booking.totalAmount, category: 'room' }],
+    subtotal: booking.totalAmount,
+    tax: 0,
+    discount: 0,
+    total: booking.totalAmount,
+    paymentMethod: 'cash',
+    paymentStatus: booking.paymentStatus,
     issueDate: new Date(),
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   }));
 
-  const mockPayments = [
-    {
-      id: 'PAY-001',
-      invoiceId: 'INV-0001',
-      amount: 450,
-      method: 'credit-card',
-      date: new Date(),
-      status: 'completed',
-      reference: 'TXN-123456',
-    },
-    {
-      id: 'PAY-002',
-      invoiceId: 'INV-0002',
-      amount: 700,
-      method: 'mpesa',
-      date: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      status: 'completed',
-      reference: 'MPESA-789012',
-    },
-  ];
+  const payments: Array<{ id: string; invoiceId: string; amount: number; method: string; date: Date; status: string; reference: string; }> = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -68,11 +58,32 @@ export default function Billing() {
     }
   };
 
-  const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const paidInvoices = mockInvoices.filter(inv => inv.status === 'paid').length;
-  const pendingAmount = mockInvoices
-    .filter(inv => inv.status === 'pending')
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  const totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
+  const paidInvoices = invoices.filter(inv => inv.paymentStatus === 'paid').length;
+  const pendingAmount = invoices
+    .filter(inv => inv.paymentStatus === 'pending')
+    .reduce((sum, inv) => sum + inv.total, 0);
+
+  const handleCreateInvoice = (event: React.FormEvent) => {
+    event.preventDefault();
+    const amount = Number(invoiceForm.amount);
+    const createdInvoice = addInvoice({
+      bookingId: invoiceForm.bookingId,
+      guestName: invoiceForm.guestName,
+      items: [{ description: 'Additional service', quantity: 1, unitPrice: amount, total: amount, category: 'service' }],
+      subtotal: amount,
+      tax: 0,
+      discount: 0,
+      total: amount,
+      paymentMethod: invoiceForm.paymentMethod,
+      paymentStatus: invoiceForm.paymentStatus,
+      issueDate: new Date(),
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+    addAuditLog({ action: 'invoice_created', details: `Created invoice ${createdInvoice.id} for ${invoiceForm.guestName}.`, actor: 'Administrator' });
+    setShowInvoiceModal(false);
+    setInvoiceForm({ guestName: '', bookingId: '', amount: '', paymentStatus: 'pending', paymentMethod: 'cash' });
+  };
 
   return (
     <div className="space-y-6">
@@ -115,7 +126,7 @@ export default function Billing() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoices</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockInvoices.length}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{invoices.length}</p>
             </div>
             <CreditCard className="w-8 h-8 text-purple-600" />
           </div>
@@ -173,7 +184,7 @@ export default function Billing() {
               />
             </div>
             <div className="flex space-x-2 mt-4 md:mt-0">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+              <button type="button" onClick={() => setShowInvoiceModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
                 <Plus className="w-4 h-4" />
                 <span>New Invoice</span>
               </button>
@@ -212,7 +223,7 @@ export default function Billing() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {mockInvoices.map((invoice) => (
+                    {invoices.map((invoice) => (
                       <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {invoice.id}
@@ -221,11 +232,11 @@ export default function Billing() {
                           {invoice.guestName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrency(invoice.amount)}
+                          {formatCurrency(invoice.total)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                            {invoice.status}
+                            {invoice.paymentStatus}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -279,7 +290,7 @@ export default function Billing() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {mockPayments.map((payment) => (
+                    {payments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {payment.id}
@@ -322,15 +333,15 @@ export default function Billing() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Credit Card</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">$1,250</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">MPESA</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">$850</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Cash</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">$420</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(0)}</span>
                     </div>
                   </div>
                 </div>
@@ -347,6 +358,40 @@ export default function Billing() {
           )}
         </div>
       </div>
+
+      {showInvoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Invoice</h3>
+              <button type="button" onClick={() => setShowInvoiceModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateInvoice} className="space-y-4">
+              <input value={invoiceForm.guestName} onChange={(e) => setInvoiceForm(prev => ({ ...prev, guestName: e.target.value }))} placeholder="Guest name" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+              <input value={invoiceForm.bookingId} onChange={(e) => setInvoiceForm(prev => ({ ...prev, bookingId: e.target.value }))} placeholder="Booking ID" className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              <input type="number" value={invoiceForm.amount} onChange={(e) => setInvoiceForm(prev => ({ ...prev, amount: e.target.value }))} placeholder="Amount" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+              <select value={invoiceForm.paymentMethod} onChange={(e) => setInvoiceForm(prev => ({ ...prev, paymentMethod: e.target.value as Invoice['paymentMethod'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mpesa">Mpesa</option>
+                <option value="bank-transfer">Bank Transfer</option>
+              </select>
+              <select value={invoiceForm.paymentStatus} onChange={(e) => setInvoiceForm(prev => ({ ...prev, paymentStatus: e.target.value as Invoice['paymentStatus'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="partial">Partial</option>
+                <option value="refunded">Refunded</option>
+              </select>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowInvoiceModal(false)} className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700">Cancel</button>
+                <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-white">Save Invoice</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

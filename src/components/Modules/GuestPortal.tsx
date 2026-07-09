@@ -90,6 +90,7 @@ export default function GuestPortal() {
                     <option value="double">Double</option>
                     <option value="suite">Suite</option>
                     <option value="deluxe">Deluxe</option>
+                    <option value="deluxe">Presidential Suite</option>
                   </select>
                   <input type="date" value={bookingForm.checkIn} onChange={(e) => setBookingForm(prev => ({ ...prev, checkIn: e.target.value }))} className="rounded-xl border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-800" />
                   <input type="date" value={bookingForm.checkOut} onChange={(e) => setBookingForm(prev => ({ ...prev, checkOut: e.target.value }))} className="rounded-xl border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-800" />

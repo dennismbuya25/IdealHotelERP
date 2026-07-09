@@ -63,11 +63,13 @@ try {
   const usersRoutes = require('./routes/users.cjs');
   const dashboardRoutes = require('./routes/dashboard.cjs');
   const roomsRoutes = require('./routes/rooms.cjs');
+  const appDataRoutes = require('./routes/app-data.cjs');
 
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/rooms', roomsRoutes);
+  app.use('/api/app-data', appDataRoutes);
 } catch (error) {
   console.error('Error loading routes:', error);
   process.exit(1);

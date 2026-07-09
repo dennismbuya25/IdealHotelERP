@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Users, Star, MessageSquare, Gift, Mail, Phone, Plus, Search, Filter, Heart, Award } from 'lucide-react';
-import { mockGuests, mockFeedback } from '../../data/mockData';
+import { useAppData } from '../../contexts/AppDataContext';
 import { Guest, Feedback } from '../../types';
 
 export default function CRM() {
-  const [guests] = useState<Guest[]>(mockGuests);
-  const [feedback] = useState<Feedback[]>(mockFeedback);
+  const { guests } = useAppData();
+  const feedback: Feedback[] = [];
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'guests' | 'feedback' | 'loyalty' | 'communications'>('guests');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,18 +33,8 @@ export default function CRM() {
     return 'text-red-600 dark:text-red-400';
   };
 
-  const mockLoyaltyPrograms = [
-    { id: '1', name: 'Welcome Bonus', points: 100, description: 'New guest registration bonus' },
-    { id: '2', name: 'Birthday Special', points: 200, description: 'Birthday month bonus points' },
-    { id: '3', name: 'Extended Stay', points: 50, description: 'Per night for stays over 3 nights' },
-    { id: '4', name: 'Restaurant Dining', points: 25, description: 'Per $100 spent in restaurant' },
-  ];
-
-  const mockCommunications = [
-    { id: '1', type: 'email', subject: 'Welcome to Ideal Hotel', recipient: 'Alice Smith', date: new Date(), status: 'sent' },
-    { id: '2', type: 'sms', subject: 'Booking Confirmation', recipient: 'Bob Wilson', date: new Date(), status: 'delivered' },
-    { id: '3', type: 'email', subject: 'Birthday Special Offer', recipient: 'Alice Smith', date: new Date(), status: 'opened' },
-  ];
+  const loyaltyPrograms = [];
+  const communications: Array<{ id: string; type: string; subject: string; recipient: string; date: Date; status: string; }> = [];
 
   return (
     <div className="space-y-6">
@@ -370,7 +360,7 @@ export default function CRM() {
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                 <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Point Earning Programs</h4>
                 <div className="space-y-4">
-                  {mockLoyaltyPrograms.map((program) => (
+                  {loyaltyPrograms.map((program) => (
                     <div key={program.id} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Gift className="w-6 h-6 text-blue-600" />
@@ -488,7 +478,7 @@ export default function CRM() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                      {mockCommunications.map((comm) => (
+                      {communications.map((comm) => (
                         <tr key={comm.id} className="hover:bg-gray-50 dark:hover:bg-gray-600">
                           <td className="px-4 py-4 whitespace-nowrap">
                             <div className="flex items-center">

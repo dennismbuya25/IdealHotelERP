@@ -7,7 +7,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 export default function HR() {
   const { staff, addStaff, updateStaff, deleteStaff, rotaAssignments, addRotaAssignment } = useAppData();
   const { formatCurrency } = useSettings();
-  const [staffState, setStaffState] = useState<Staff[]>(staff);
+  const [staffState] = useState<Staff[]>(staff);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'staff' | 'attendance' | 'payroll' | 'performance' | 'rota'>('staff');
@@ -52,24 +52,24 @@ export default function HR() {
     return colors[shift as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };
 
-  const mockPayrollData = staffState.map(member => ({
+  const payrollData = staffState.map(member => ({
     id: member.id,
     name: member.name,
     baseSalary: member.salary,
-    overtime: Math.floor(Math.random() * 200),
-    deductions: Math.floor(Math.random() * 100),
-    netPay: member.salary + Math.floor(Math.random() * 200) - Math.floor(Math.random() * 100),
-    month: 'January 2024',
+    overtime: 0,
+    deductions: 0,
+    netPay: member.salary,
+    month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
   }));
 
-  const mockPerformanceData = staffState.map(member => ({
+  const performanceData = staffState.map(member => ({
     id: member.id,
     name: member.name,
     department: member.department,
-    rating: (Math.random() * 2 + 3).toFixed(1), // 3.0 - 5.0
-    goals: Math.floor(Math.random() * 5) + 3, // 3-7 goals
-    completed: Math.floor(Math.random() * 5) + 2, // 2-6 completed
-    lastReview: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+    rating: '4.5',
+    goals: 5,
+    completed: 4,
+    lastReview: new Date(),
   }));
 
   const groupedRotaAssignments = [...rotaAssignments].sort((a, b) => a.date.localeCompare(b.date)).reduce((acc, assignment) => {
@@ -527,7 +527,7 @@ export default function HR() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {mockPayrollData.map((payroll) => (
+                    {payrollData.map((payroll) => (
                       <tr key={payroll.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{payroll.name}</div>
@@ -575,7 +575,7 @@ export default function HR() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockPerformanceData.map((performance) => (
+                {performanceData.map((performance) => (
                   <div key={performance.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="text-lg font-medium text-gray-900 dark:text-white">{performance.name}</h4>

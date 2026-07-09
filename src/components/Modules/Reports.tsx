@@ -1,44 +1,33 @@
 import React, { useState } from 'react';
 import { BarChart3, PieChart, TrendingUp, Download, Calendar, Filter, FileText, DollarSign, Users, Home } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export default function Reports() {
+  const { formatCurrency } = useSettings();
   const [activeTab, setActiveTab] = useState<'overview' | 'financial' | 'operational' | 'custom'>('overview');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedReport, setSelectedReport] = useState('');
 
-  const mockReportData = {
+  const reportData = {
     revenue: {
-      total: 125750,
-      growth: 12.5,
-      breakdown: [
-        { category: 'Room Revenue', amount: 85000, percentage: 67.6 },
-        { category: 'Restaurant', amount: 25000, percentage: 19.9 },
-        { category: 'Bar', amount: 8750, percentage: 7.0 },
-        { category: 'Other Services', amount: 7000, percentage: 5.5 },
-      ]
+      total: 0,
+      growth: 0,
+      breakdown: [] as Array<{ category: string; amount: number; percentage: number }>,
     },
     occupancy: {
-      rate: 78.5,
-      totalRooms: 50,
-      occupiedRooms: 39,
-      availableRooms: 11,
-      monthlyTrend: [
-        { month: 'Jan', rate: 72 },
-        { month: 'Feb', rate: 75 },
-        { month: 'Mar', rate: 78 },
-        { month: 'Apr', rate: 78.5 },
-      ]
+      rate: 0,
+      totalRooms: 0,
+      occupiedRooms: 0,
+      availableRooms: 0,
+      monthlyTrend: [] as Array<{ month: string; rate: number }>,
     },
     guests: {
-      total: 156,
-      newGuests: 45,
-      returningGuests: 111,
-      satisfaction: 4.6,
-      demographics: [
-        { type: 'Business', count: 89, percentage: 57 },
-        { type: 'Leisure', count: 67, percentage: 43 },
-      ]
-    }
+      total: 0,
+      newGuests: 0,
+      returningGuests: 0,
+      satisfaction: 0,
+      demographics: [] as Array<{ type: string; count: number; percentage: number }>,
+    },
   };
 
   const predefinedReports = [
@@ -81,8 +70,8 @@ export default function Reports() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">${mockReportData.revenue.total.toLocaleString()}</p>
-              <p className="text-sm text-green-600 dark:text-green-400">+{mockReportData.revenue.growth}% growth</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.revenue.total)}</p>
+              <p className="text-sm text-green-600 dark:text-green-400">+{reportData.revenue.growth}% growth</p>
             </div>
             <DollarSign className="w-8 h-8 text-green-600" />
           </div>
@@ -91,8 +80,8 @@ export default function Reports() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Occupancy Rate</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockReportData.occupancy.rate}%</p>
-              <p className="text-sm text-blue-600 dark:text-blue-400">{mockReportData.occupancy.occupiedRooms}/{mockReportData.occupancy.totalRooms} rooms</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.occupancy.rate}%</p>
+              <p className="text-sm text-blue-600 dark:text-blue-400">{reportData.occupancy.occupiedRooms}/{reportData.occupancy.totalRooms} rooms</p>
             </div>
             <Home className="w-8 h-8 text-blue-600" />
           </div>
@@ -101,8 +90,8 @@ export default function Reports() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Guests</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockReportData.guests.total}</p>
-              <p className="text-sm text-purple-600 dark:text-purple-400">{mockReportData.guests.newGuests} new guests</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.guests.total}</p>
+              <p className="text-sm text-purple-600 dark:text-purple-400">{reportData.guests.newGuests} new guests</p>
             </div>
             <Users className="w-8 h-8 text-purple-600" />
           </div>
@@ -111,7 +100,7 @@ export default function Reports() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Satisfaction</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockReportData.guests.satisfaction}/5</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.guests.satisfaction}/5</p>
               <p className="text-sm text-yellow-600 dark:text-yellow-400">Guest rating</p>
             </div>
             <TrendingUp className="w-8 h-8 text-yellow-600" />
@@ -206,11 +195,11 @@ export default function Reports() {
                     <PieChart className="w-5 h-5 text-gray-400" />
                   </div>
                   <div className="space-y-4">
-                    {mockReportData.revenue.breakdown.map((item, index) => (
+                    {reportData.revenue.breakdown.map((item, index) => (
                       <div key={index} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium text-gray-700 dark:text-gray-300">{item.category}</span>
-                          <span className="text-gray-900 dark:text-white">${item.amount.toLocaleString()} ({item.percentage}%)</span>
+                          <span className="text-gray-900 dark:text-white">{formatCurrency(item.amount)} ({item.percentage}%)</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
@@ -230,7 +219,7 @@ export default function Reports() {
                     <BarChart3 className="w-5 h-5 text-gray-400" />
                   </div>
                   <div className="space-y-4">
-                    {mockReportData.occupancy.monthlyTrend.map((item, index) => (
+                    {reportData.occupancy.monthlyTrend.map((item, index) => (
                       <div key={index} className="flex items-center space-x-4">
                         <div className="w-12 text-sm font-medium text-gray-600 dark:text-gray-400">{item.month}</div>
                         <div className="flex-1">
@@ -254,7 +243,7 @@ export default function Reports() {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Guest Demographics</h4>
                   <div className="space-y-4">
-                    {mockReportData.guests.demographics.map((item, index) => (
+                    {reportData.guests.demographics.map((item, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className={`w-4 h-4 rounded-full ${index === 0 ? 'bg-blue-500' : 'bg-purple-500'}`} />
@@ -283,7 +272,7 @@ export default function Reports() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Guest Satisfaction Score</span>
-                      <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{mockReportData.guests.satisfaction}/5</span>
+                      <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{reportData.guests.satisfaction}/5</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Repeat Guest Rate</span>

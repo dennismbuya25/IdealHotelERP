@@ -5,6 +5,8 @@ export interface User {
   role: 'admin' | 'manager' | 'receptionist' | 'housekeeping' | 'restaurant' | 'hr' | 'guest';
   avatar?: string;
   isActive: boolean;
+  username?: string;
+  password?: string;
 }
 
 export interface AuditLog {
@@ -136,6 +138,24 @@ export interface InvoiceItem {
   unitPrice: number;
   total: number;
   category: 'room' | 'food' | 'beverage' | 'service' | 'other';
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  category: 'operations' | 'maintenance' | 'supplies' | 'staff' | 'marketing' | 'other';
+  amount: number;
+  paymentMethod: 'cash' | 'card' | 'mpesa' | 'bank-transfer';
+  date: Date;
+  notes?: string;
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  type: string;
+  status: 'connected' | 'disconnected' | 'pending';
+  description: string;
 }
 
 export interface DashboardStats {

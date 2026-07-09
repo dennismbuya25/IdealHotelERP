@@ -124,7 +124,7 @@ export default function Bookings() {
     });
     setShowNewBookingModal(false);
     setNewBooking(emptyBookingForm);
-    setFeedback(`Booking created for ${bookingToAdd.guestName} in Room ${selectedRoom.number} for ${formatCurrency(estimatedAmount)}.`);
+    setFeedback(`Booking created for ${newBooking.guestName} in Room ${selectedRoom.number} for ${formatCurrency(estimatedAmount)}.`);
   };
 
   const handleStatusUpdate = (bookingId: string, nextStatus: Booking['status']) => {

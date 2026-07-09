@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Users, Shield, Globe, Bell, Database, Palette, Key, Clock, Mail, XCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Shield, Globe, Bell, Database, Palette, Key, Clock, Mail, XCircle, Plus } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAppData } from '../../contexts/AppDataContext';
-import { AuditLog, User } from '../../types';
+import { Integration, User } from '../../types';
 
 export default function Settings() {
-  const { settings, updateSettings, saveSettings, resetSettings, currencyCode } = useSettings();
-  const { users, auditLogs, addUser, addAuditLog, updateUser } = useAppData();
+  const { settings, updateSettings, saveSettings, resetSettings } = useSettings();
+  const { users, auditLogs, integrations, addUser, addAuditLog, updateUser, permissionProfiles, updatePermissionProfile, addIntegration } = useAppData();
   const [activeTab, setActiveTab] = useState<'general' | 'users' | 'audit' | 'security' | 'notifications' | 'integrations'>('general');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'receptionist' as User['role'], isActive: true });
+  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'receptionist' as User['role'], isActive: true, username: '', password: '' });
+  const [integrationForm, setIntegrationForm] = useState({ name: '', type: 'booking', status: 'connected' as Integration['status'], description: '' });
+  const [editingPermissionsRole, setEditingPermissionsRole] = useState<User['role'] | null>(null);
+  const [permissionDraft, setPermissionDraft] = useState<string[]>([]);
 
   const handleSettingChange = (key: string, value: any) => {
     updateSettings({ [key]: value } as any);
@@ -31,13 +35,13 @@ export default function Settings() {
 
   const openAddUserModal = () => {
     setEditingUser(null);
-    setUserForm({ name: '', email: '', role: 'receptionist', isActive: true });
+    setUserForm({ name: '', email: '', role: 'receptionist', isActive: true, username: '', password: '' });
     setShowUserModal(true);
   };
 
   const openEditUserModal = (user: User) => {
     setEditingUser(user);
-    setUserForm({ name: user.name, email: user.email, role: user.role, isActive: user.isActive });
+    setUserForm({ name: user.name, email: user.email, role: user.role, isActive: user.isActive, username: user.username || user.email, password: '' });
     setShowUserModal(true);
   };
 
@@ -49,14 +53,14 @@ export default function Settings() {
       addAuditLog({ action: 'user_updated', details: `Updated user ${userForm.name}.`, actor: 'Administrator' });
       setSaveMessage(`Updated ${userForm.name}.`);
     } else {
-      addUser({ ...userForm });
+      addUser({ ...userForm, username: userForm.username || userForm.email, password: userForm.password || 'Welcome123!' });
       addAuditLog({ action: 'user_created', details: `Created user ${userForm.name}.`, actor: 'Administrator' });
       setSaveMessage(`Added ${userForm.name}.`);
     }
 
     setShowUserModal(false);
     setEditingUser(null);
-    setUserForm({ name: '', email: '', role: 'receptionist', isActive: true });
+    setUserForm({ name: '', email: '', role: 'receptionist', isActive: true, username: '', password: '' });
   };
 
   const handleToggleUserStatus = (user: User) => {
@@ -65,13 +69,47 @@ export default function Settings() {
     setSaveMessage(`${user.name} is now ${user.isActive ? 'inactive' : 'active'}.`);
   };
 
-  const mockIntegrations = [
-    { id: '1', name: 'Booking.com', type: 'Channel Manager', status: 'connected', description: 'Online booking platform integration' },
-    { id: '2', name: 'Stripe', type: 'Payment Gateway', status: 'connected', description: 'Credit card payment processing' },
-    { id: '3', name: 'MPESA', type: 'Mobile Payment', status: 'disconnected', description: 'Mobile money payment system' },
-    { id: '4', name: 'QuickBooks', type: 'Accounting', status: 'pending', description: 'Financial management integration' },
-    { id: '5', name: 'Mailchimp', type: 'Email Marketing', status: 'connected', description: 'Email campaign management' },
+  const permissionOptions = [
+    'Dashboard',
+    'Bookings',
+    'Guest Management',
+    'Front Desk',
+    'Room Management',
+    'Housekeeping Tasks',
+    'HR',
+    'Payroll',
+    'Rota Management',
+    'Staff Profiles',
+    'User Management',
+    'System Settings',
+    'Financial Reports',
+    'Reports',
+    'Restaurant & KOT',
+    'Orders',
+    'Kitchen View',
+    'View Bookings',
+    'Book Rooms',
+    'Request Meals',
   ];
+
+  const roleCards = [
+    { key: 'admin' as const, label: 'Admin' },
+    { key: 'manager' as const, label: 'Manager' },
+    { key: 'receptionist' as const, label: 'Receptionist' },
+    { key: 'housekeeping' as const, label: 'Housekeeping' },
+    { key: 'restaurant' as const, label: 'Restaurant' },
+    { key: 'hr' as const, label: 'HR' },
+    { key: 'guest' as const, label: 'Guest' },
+  ];
+
+  const handleIntegrationSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    addIntegration({ ...integrationForm });
+    addAuditLog({ action: 'integration_added', details: `Connected integration ${integrationForm.name}.`, actor: 'Administrator' });
+    setSaveMessage(`Added integration ${integrationForm.name}.`);
+    setShowIntegrationModal(false);
+    setIntegrationForm({ name: '', type: 'booking', status: 'connected', description: '' });
+  };
 
   const getRoleColor = (role: string) => {
     const colors = {
@@ -83,6 +121,27 @@ export default function Settings() {
       hr: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300',
     };
     return colors[role as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  };
+
+  const openPermissionEditor = (role: User['role']) => {
+    setEditingPermissionsRole(role);
+    setPermissionDraft(permissionProfiles[role] || []);
+  };
+
+  const handlePermissionToggle = (permission: string) => {
+    setPermissionDraft(prev => prev.includes(permission) ? prev.filter(item => item !== permission) : [...prev, permission]);
+  };
+
+  const handlePermissionSave = () => {
+    if (!editingPermissionsRole) {
+      return;
+    }
+
+    updatePermissionProfile(editingPermissionsRole, permissionDraft);
+    addAuditLog({ action: 'permissions_updated', details: `Updated permissions for ${editingPermissionsRole}.`, actor: 'Administrator' });
+    setSaveMessage(`Permissions updated for ${editingPermissionsRole}.`);
+    setEditingPermissionsRole(null);
+    setPermissionDraft([]);
   };
 
   const getStatusColor = (status: string) => {
@@ -361,7 +420,7 @@ export default function Settings() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">User Management</h3>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <button type="button" onClick={openAddUserModal} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
                   <Users className="w-4 h-4" />
                   <span>Add User</span>
                 </button>
@@ -455,6 +514,8 @@ export default function Settings() {
                 <form onSubmit={handleUserSubmit} className="space-y-4">
                   <input value={userForm.name} onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Full name" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
                   <input type="email" value={userForm.email} onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+                  <input value={userForm.username} onChange={(e) => setUserForm(prev => ({ ...prev, username: e.target.value }))} placeholder="Username" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+                  {!editingUser && <input type="password" value={userForm.password} onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))} placeholder="Temporary password" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />}
                   <select value={userForm.role} onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value as User['role'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
@@ -519,26 +580,32 @@ export default function Settings() {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Role Permissions</h4>
                   <div className="space-y-4">
-                    {[
-                      { role: 'Admin', permissions: ['Full Access', 'User Management', 'System Settings', 'Financial Reports'] },
-                      { role: 'Manager', permissions: ['Dashboard', 'Bookings', 'Staff Management', 'Reports'] },
-                      { role: 'Receptionist', permissions: ['Dashboard', 'Bookings', 'Guest Management', 'Front Desk'] },
-                      { role: 'Housekeeping', permissions: ['Room Management', 'Housekeeping Tasks'] },
-                    ].map((roleData) => (
-                      <div key={roleData.role} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                        <h5 className="font-medium text-gray-900 dark:text-white mb-2">{roleData.role}</h5>
-                        <div className="flex flex-wrap gap-1">
-                          {roleData.permissions.map((permission) => (
-                            <span key={permission} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded text-xs">
-                              {permission}
-                            </span>
-                          ))}
+                    {roleCards.map((roleData) => {
+                      const activePermissions = permissionProfiles[roleData.key] || [];
+                      return (
+                        <div key={roleData.key} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <h5 className="font-medium text-gray-900 dark:text-white">{roleData.label}</h5>
+                            <button
+                              type="button"
+                              onClick={() => openPermissionEditor(roleData.key)}
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              Edit Permissions
+                            </button>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {activePermissions.length > 0 ? activePermissions.map((permission) => (
+                              <span key={permission} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded text-xs">
+                                {permission}
+                              </span>
+                            )) : (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">No custom permissions assigned</span>
+                            )}
+                          </div>
                         </div>
-                        <button className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                          Edit Permissions
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -590,6 +657,30 @@ export default function Settings() {
                 </div>
               </div>
 
+              {editingPermissionsRole && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-md font-medium text-gray-900 dark:text-white">Edit permissions for {editingPermissionsRole}</h4>
+                    <button type="button" onClick={() => setEditingPermissionsRole(null)} className="text-sm text-gray-600 dark:text-gray-300">Cancel</button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {permissionOptions.map((permission) => (
+                      <label key={permission} className="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={permissionDraft.includes(permission)}
+                          onChange={() => handlePermissionToggle(permission)}
+                        />
+                        {permission}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <button type="button" onClick={handlePermissionSave} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white">Save Permissions</button>
+                  </div>
+                </div>
+              )}
+
               {/* Audit Log */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                 <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Recent Security Events</h4>
@@ -622,58 +713,38 @@ export default function Settings() {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">Notification Settings</h3>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Email Notifications */}
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <div className="flex items-center space-x-2 mb-4">
                     <Mail className="w-5 h-5 text-blue-600" />
                     <h4 className="text-md font-medium text-gray-900 dark:text-white">Email Notifications</h4>
                   </div>
-                  <div className="space-y-3">
-                    {[
-                      'New booking confirmations',
-                      'Payment received notifications',
-                      'Guest check-in/check-out alerts',
-                      'Low inventory warnings',
-                      'Staff schedule changes',
-                      'System maintenance alerts',
-                      'Daily revenue reports',
-                      'Guest feedback notifications',
-                    ].map((notification) => (
-                      <label key={notification} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{notification}</span>
-                        <input
-                          type="checkbox"
-                          defaultChecked
-                          className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                        />
-                      </label>
-                    ))}
-                  </div>
+                  <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-3 dark:border-gray-600 dark:bg-gray-800">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Enable email alerts</span>
+                    <input
+                      type="checkbox"
+                      checked={settings.emailNotifications}
+                      onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
+                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                  </label>
+                  <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">No email notification rules have been configured yet.</p>
                 </div>
 
-                {/* SMS Notifications */}
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                   <div className="flex items-center space-x-2 mb-4">
                     <Bell className="w-5 h-5 text-green-600" />
                     <h4 className="text-md font-medium text-gray-900 dark:text-white">SMS Notifications</h4>
                   </div>
-                  <div className="space-y-3">
-                    {[
-                      'Emergency alerts',
-                      'Critical system failures',
-                      'Security breach notifications',
-                      'VIP guest arrivals',
-                      'Urgent maintenance requests',
-                    ].map((notification) => (
-                      <label key={notification} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{notification}</span>
-                        <input
-                          type="checkbox"
-                          className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                        />
-                      </label>
-                    ))}
-                  </div>
+                  <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-3 dark:border-gray-600 dark:bg-gray-800">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Enable SMS alerts</span>
+                    <input
+                      type="checkbox"
+                      checked={settings.smsNotifications}
+                      onChange={(e) => handleSettingChange('smsNotifications', e.target.checked)}
+                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                  </label>
+                  <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">No SMS notification rules have been configured yet.</p>
                 </div>
               </div>
 
@@ -732,46 +803,31 @@ export default function Settings() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Third-party Integrations</h3>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                <button type="button" onClick={() => setShowIntegrationModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
                   <Key className="w-4 h-4" />
                   <span>Add Integration</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockIntegrations.map((integration) => (
-                  <div key={integration.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">{integration.name}</h4>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(integration.status)}`}>
-                        {integration.status}
-                      </span>
+              {integrations.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-white/70 p-8 text-center dark:border-gray-600 dark:bg-gray-800/60">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">No integrations connected yet.</p>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Add a booking channel, payment provider, or accounting tool when you are ready.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {integrations.map((integration) => (
+                    <div key={integration.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-gray-900 dark:text-white">{integration.name}</h4>
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(integration.status)}`}>{integration.status}</span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{integration.description}</p>
+                      <p className="mt-2 text-xs uppercase tracking-wide text-gray-400">{integration.type}</p>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{integration.type}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{integration.description}</p>
-                    <div className="flex space-x-2">
-                      {integration.status === 'connected' ? (
-                        <>
-                          <button className="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg text-sm transition-colors">
-                            Configure
-                          </button>
-                          <button className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                            Disconnect
-                          </button>
-                        </>
-                      ) : integration.status === 'pending' ? (
-                        <button className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                          Complete Setup
-                        </button>
-                      ) : (
-                        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                          Connect
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {/* API Settings */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
@@ -818,6 +874,33 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {showIntegrationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add Integration</h3>
+              <button type="button" onClick={() => setShowIntegrationModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={handleIntegrationSubmit} className="space-y-4">
+              <input value={integrationForm.name} onChange={(e) => setIntegrationForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Integration name" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+              <input value={integrationForm.type} onChange={(e) => setIntegrationForm(prev => ({ ...prev, type: e.target.value }))} placeholder="Type" className="w-full rounded-lg border border-gray-300 px-3 py-2" required />
+              <select value={integrationForm.status} onChange={(e) => setIntegrationForm(prev => ({ ...prev, status: e.target.value as Integration['status'] }))} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+                <option value="connected">Connected</option>
+                <option value="pending">Pending</option>
+                <option value="disconnected">Disconnected</option>
+              </select>
+              <textarea value={integrationForm.description} onChange={(e) => setIntegrationForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2" rows={3} />
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowIntegrationModal(false)} className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700">Cancel</button>
+                <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-white">Save Integration</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

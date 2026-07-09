@@ -9,36 +9,7 @@ interface Activity {
   user?: string;
 }
 
-const mockActivities: Activity[] = [
-  {
-    id: '1',
-    type: 'checkin',
-    description: 'Alice Smith checked into Room 101',
-    time: new Date('2024-01-15T14:30:00'),
-    user: 'Mike Johnson',
-  },
-  {
-    id: '2',
-    type: 'booking',
-    description: 'New booking for Room 301 (3 nights)',
-    time: new Date('2024-01-15T13:45:00'),
-    user: 'Sarah Wilson',
-  },
-  {
-    id: '3',
-    type: 'payment',
-    description: 'Payment received for Booking #1234',
-    time: new Date('2024-01-15T12:20:00'),
-    user: 'Mike Johnson',
-  },
-  {
-    id: '4',
-    type: 'checkout',
-    description: 'John Doe checked out from Room 205',
-    time: new Date('2024-01-15T11:00:00'),
-    user: 'Mike Johnson',
-  },
-];
+const activities: Activity[] = [];
 
 const activityIcons = {
   checkin: User,
@@ -65,7 +36,11 @@ export default function ActivityLog() {
       </div>
 
       <div className="space-y-4">
-        {mockActivities.map((activity) => {
+        {activities.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
+            No activity recorded yet.
+          </div>
+        ) : activities.map((activity) => {
           const Icon = activityIcons[activity.type];
           
           return (

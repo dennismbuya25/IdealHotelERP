@@ -1,26 +1,27 @@
 import React, { useState } from 'react';
 import { UserCheck, UserX, Key, Clock, AlertCircle, Search, Plus } from 'lucide-react';
-import { mockBookings, mockGuests, mockRooms } from '../../data/mockData';
+import { useAppData } from '../../contexts/AppDataContext';
 
 export default function FrontDesk() {
+  const { bookings, guests, rooms } = useAppData();
   const [activeTab, setActiveTab] = useState<'checkin' | 'checkout' | 'guests'>('checkin');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const todayCheckIns = mockBookings.filter(b => 
+  const todayCheckIns = bookings.filter(b => 
     b.status === 'confirmed' && 
     b.checkIn.toDateString() === new Date().toDateString()
   );
 
-  const todayCheckOuts = mockBookings.filter(b => 
+  const todayCheckOuts = bookings.filter(b => 
     b.status === 'checked-in' && 
     b.checkOut.toDateString() === new Date().toDateString()
   );
 
   const getRoomDetails = (roomId: string) => {
-    return mockRooms.find(r => r.id === roomId);
+    return rooms.find(r => r.id === roomId);
   };
 
-  const filteredGuests = mockGuests.filter(guest =>
+  const filteredGuests = guests.filter(guest =>
     guest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     guest.email.toLowerCase().includes(searchTerm.toLowerCase())
   );

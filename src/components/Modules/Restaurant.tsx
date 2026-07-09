@@ -313,7 +313,7 @@ export default function Restaurant() {
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-6">
                   <h3 className="text-lg font-medium text-yellow-800 dark:text-yellow-300 mb-4">Pending Orders</h3>
                   <div className="space-y-2">
-                    {mockKitchenOrders.filter(o => o.status === 'pending').map((order) => (
+                    {kitchenOrders.filter(o => o.status === 'pending').map((order) => (
                       <div key={order.id} className="bg-white dark:bg-gray-800 rounded p-3">
                         <p className="font-medium text-gray-900 dark:text-white">{order.orderNumber}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -327,7 +327,7 @@ export default function Restaurant() {
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
                   <h3 className="text-lg font-medium text-blue-800 dark:text-blue-300 mb-4">In Preparation</h3>
                   <div className="space-y-2">
-                    {mockKitchenOrders.filter(o => o.status === 'preparing').map((order) => (
+                    {kitchenOrders.filter(o => o.status === 'preparing').map((order) => (
                       <div key={order.id} className="bg-white dark:bg-gray-800 rounded p-3">
                         <p className="font-medium text-gray-900 dark:text-white">{order.orderNumber}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -341,7 +341,7 @@ export default function Restaurant() {
                 <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
                   <h3 className="text-lg font-medium text-green-800 dark:text-green-300 mb-4">Ready to Serve</h3>
                   <div className="space-y-2">
-                    {mockKitchenOrders.filter(o => o.status === 'ready').map((order) => (
+                    {kitchenOrders.filter(o => o.status === 'ready').map((order) => (
                       <div key={order.id} className="bg-white dark:bg-gray-800 rounded p-3">
                         <p className="font-medium text-gray-900 dark:text-white">{order.orderNumber}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">

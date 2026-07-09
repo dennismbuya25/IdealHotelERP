@@ -7,7 +7,7 @@ import { InventoryItem } from '../../types';
 export default function Inventory() {
   const { formatCurrency } = useSettings();
   const { inventoryItems, addInventoryItem, updateInventoryItem } = useAppData();
-  const [items, setItems] = useState<InventoryItem[]>(inventoryItems);
+  const items = inventoryItems;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'inventory' | 'suppliers' | 'orders'>('inventory');
@@ -73,16 +73,8 @@ export default function Inventory() {
     setNewItemForm({ name: '', category: 'kitchen', currentStock: 0, minStock: 5, maxStock: 50, unit: 'units', unitPrice: 0, supplier: '' });
   };
 
-  const mockSuppliers = [
-    { id: '1', name: 'Linen Supply Co.', contact: 'John Smith', phone: '+1234567890', email: 'john@linensupply.com', category: 'housekeeping' },
-    { id: '2', name: 'Fresh Foods Ltd.', contact: 'Mary Johnson', phone: '+1234567891', email: 'mary@freshfoods.com', category: 'kitchen' },
-    { id: '3', name: 'Clean Pro Inc.', contact: 'David Wilson', phone: '+1234567892', email: 'david@cleanpro.com', category: 'housekeeping' },
-  ];
-
-  const mockOrders = [
-    { id: 'PO-001', supplier: 'Fresh Foods Ltd.', items: 5, total: 450, status: 'pending', date: new Date() },
-    { id: 'PO-002', supplier: 'Linen Supply Co.', items: 3, total: 280, status: 'delivered', date: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-  ];
+  const supplierCount = items.filter((item) => item.supplier).length;
+  const pendingOrders = items.filter((item) => item.currentStock <= item.minStock).length;
 
   return (
     <div className="space-y-6">
@@ -130,7 +122,7 @@ export default function Inventory() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Orders</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockOrders.filter(o => o.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingOrders}</p>
             </div>
             <ShoppingCart className="w-8 h-8 text-purple-600" />
           </div>
@@ -322,31 +314,9 @@ export default function Inventory() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockSuppliers.map((supplier) => (
-                  <div key={supplier.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">{supplier.name}</h4>
-                      <Truck className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <p className="text-gray-600 dark:text-gray-400">Contact: {supplier.contact}</p>
-                      <p className="text-gray-600 dark:text-gray-400">Phone: {supplier.phone}</p>
-                      <p className="text-gray-600 dark:text-gray-400">Email: {supplier.email}</p>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 capitalize">
-                        {supplier.category}
-                      </span>
-                    </div>
-                    <div className="mt-4 flex space-x-2">
-                      <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                        Contact
-                      </button>
-                      <button className="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg text-sm transition-colors">
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                Supplier records will appear here once the local database has supplier data available.
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">Tracked suppliers from the database: {supplierCount}</div>
               </div>
             </div>
           )}
@@ -365,76 +335,8 @@ export default function Inventory() {
                 </button>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Order ID
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Supplier
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Items
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Total
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {mockOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {order.id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {order.supplier}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {order.items} items
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrency(order.total)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            order.status === 'pending' 
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                          }`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {order.date.toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                              View
-                            </button>
-                            {order.status === 'pending' && (
-                              <button className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300">
-                                Approve
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                Purchase orders will be synced here from the local database as soon as they are created.
               </div>
             </div>
           )}
@@ -481,8 +383,8 @@ export default function Inventory() {
             <form onSubmit={handleCreateOrder} className="space-y-4">
               <select value={orderForm.supplier} onChange={(e) => setOrderForm(prev => ({ ...prev, supplier: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                 <option value="">Select supplier</option>
-                {mockSuppliers.map(supplier => (
-                  <option key={supplier.id}>{supplier.name}</option>
+                {items.filter((item) => item.supplier).map((item) => (
+                  <option key={item.id}>{item.supplier}</option>
                 ))}
               </select>
               <input type="number" value={orderForm.quantity} onChange={(e) => setOrderForm(prev => ({ ...prev, quantity: Number(e.target.value) }))} placeholder="Quantity" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required />

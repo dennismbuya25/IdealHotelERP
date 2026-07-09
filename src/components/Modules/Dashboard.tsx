@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Home, DollarSign, Star, TrendingUp, Calendar, Sparkles, BedDouble, ClipboardList } from 'lucide-react';
 import StatsCard from '../Dashboard/StatsCard';
 import OccupancyChart from '../Dashboard/OccupancyChart';
@@ -9,6 +10,7 @@ import { useAppData } from '../../contexts/AppDataContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { formatCurrency } = useSettings();
   const { rooms, bookings, guests, staff } = useAppData();
   const stats = {
@@ -90,19 +92,19 @@ export default function Dashboard() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 bg-blue-50 dark:bg-blue-900/50 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/70 transition-colors">
+          <button type="button" onClick={() => navigate('/bookings')} className="p-4 bg-blue-50 dark:bg-blue-900/50 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/70 transition-colors">
             <Users className="w-6 h-6 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
             <span className="text-sm font-medium text-blue-600 dark:text-blue-400">New Booking</span>
           </button>
-          <button className="p-4 bg-green-50 dark:bg-green-900/50 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/70 transition-colors">
+          <button type="button" onClick={() => navigate('/front-desk')} className="p-4 bg-green-50 dark:bg-green-900/50 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/70 transition-colors">
             <Home className="w-6 h-6 text-green-600 dark:text-green-400 mx-auto mb-2" />
             <span className="text-sm font-medium text-green-600 dark:text-green-400">Check-in Guest</span>
           </button>
-          <button className="p-4 bg-purple-50 dark:bg-purple-900/50 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/70 transition-colors">
+          <button type="button" onClick={() => navigate('/billing')} className="p-4 bg-purple-50 dark:bg-purple-900/50 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/70 transition-colors">
             <DollarSign className="w-6 h-6 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
             <span className="text-sm font-medium text-purple-600 dark:text-purple-400">Process Payment</span>
           </button>
-          <button className="p-4 bg-yellow-50 dark:bg-yellow-900/50 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/70 transition-colors">
+          <button type="button" onClick={() => navigate('/reports')} className="p-4 bg-yellow-50 dark:bg-yellow-900/50 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/70 transition-colors">
             <Star className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
             <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">View Reports</span>
           </button>

@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  ReceiptText,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
