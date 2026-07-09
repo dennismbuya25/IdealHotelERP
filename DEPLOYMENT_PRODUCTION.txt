@@ -1,0 +1,164 @@
+Production Deployment Guide — ideal.bibetech.co.ke
+
+Overview
+- Host frontend, backend (Express), and PostgreSQL for the IdealHotelERP application on subdomain: ideal.bibetech.co.ke.
+- Target platform: single Ubuntu 22.04 VM (or similar cloud VM). Use Docker + Docker Compose for reproducible deployment. Use Let's Encrypt for TLS.
+- Assumptions: you control DNS for bibetech.co.ke, have SSH access to the target server, and GitHub remote configured for this repository.
+
+Steps
+
+1) Prepare repo for production
+- Ensure `package.json` has a `start` script for the backend, e.g.:
+  {
+    "scripts": {
+      "start": "node server/server.cjs",
+      "build": "vite build"
+    }
+  }
+- Build frontend locally (optional) or during Docker build.
+
+2) Add Dockerfiles
+- Backend `Dockerfile` (example):
+
+  FROM node:18-alpine
+  WORKDIR /app
+  COPY package*.json ./
+  RUN npm ci --only=production
+  COPY . .
+  ENV NODE_ENV=production
+  EXPOSE 3000
+  CMD ["node","server/server.cjs"]
+
+- Frontend: serve statically with Nginx or serve from backend's static folder. Example Nginx `Dockerfile` can copy `dist/` and serve.
+
+3) Create `docker-compose.yml`
+- Services: `db` (postgres), `app` (backend), `nginx` (reverse proxy / static), optional `adminer`.
+- Use a named volume for Postgres data and an `.env` file for secrets.
+
+  Example (sketch):
+
+  version: '3.8'
+  services:
+    db:
+      image: postgres:15
+      environment:
+        POSTGRES_DB: ideal
+        POSTGRES_USER: idealuser
+        POSTGRES_PASSWORD: supersecurepassword
+      volumes:
+        - db-data:/var/lib/postgresql/data
+    app:
+      build: .
+      environment:
+        DATABASE_URL: postgres://idealuser:supersecurepassword@db:5432/ideal
+        NODE_ENV: production
+      depends_on:
+        - db
+    nginx:
+      image: nginx:stable
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - ./nginx/conf.d:/etc/nginx/conf.d
+        - ./dist:/usr/share/nginx/html
+  volumes:
+    db-data:
+
+4) Database migrations and schema
+- Add SQL migration scripts under `server/migrations/` and a small runner script `server/migrations/run-migrations.js` that applies them using `pg` or `node-postgres`.
+- Run migrations on first boot (manual step or init job in Docker Compose).
+
+5) Provision server (Ubuntu 22.04 recommended)
+- Create VM (2+ vCPU, 4GB+ RAM recommended).
+- SSH in and install Docker & Docker Compose:
+
+  sudo apt update
+  sudo apt install -y docker.io docker-compose
+  sudo usermod -aG docker $USER
+  newgrp docker
+
+6) Push code to server
+- Clone repo to `/srv/ideal` (or pull updates) on server:
+
+  git clone https://github.com/dennismbuya25/IdealHotelERP.git /srv/ideal
+  cd /srv/ideal
+
+7) DNS: point subdomain
+- In your DNS provider, create an A record:
+  - Host: `ideal` (makes ideal.bibetech.co.ke)
+  - Value: public IP of the VM
+- Wait for propagation.
+
+8) TLS & reverse proxy
+Option A: Certbot with Nginx on host
+- Configure Nginx to proxy `https://ideal.bibetech.co.ke` to the backend container (e.g., `http://127.0.0.1:3000`) or docker network address.
+- Obtain certificate with Certbot:
+
+  sudo apt install certbot python3-certbot-nginx
+  sudo certbot --nginx -d ideal.bibetech.co.ke
+
+Option B: Use `nginx-proxy` + `jwilder/nginx-proxy` + `letsencrypt` companion or Traefik inside Docker for automatic certificate management.
+
+9) Environment variables & secrets
+- Store sensitive values in a file `.env` on the server (not committed):
+
+  DATABASE_URL=postgres://idealuser:supersecurepassword@db:5432/ideal
+  JWT_SECRET=<very-long-secret>
+  NODE_ENV=production
+  VITE_API_URL=https://ideal.bibetech.co.ke/api
+
+- Ensure `.env` has `chmod 600 .env` and not tracked by git.
+
+10) Start services
+- On server, from repo root:
+
+  docker compose up -d --build
+
+- Check logs:
+
+  docker compose logs -f app
+  docker compose logs -f db
+
+11) Backups
+- Schedule `pg_dump` on host or use a backup container to dump Postgres to a secure backup location (S3, remote server).
+- Example cron job (on host):
+
+  0 2 * * * PGUSER=idealuser PGPASSWORD=supersecurepassword pg_dump -Fc -h localhost -U $PGUSER ideal > /backups/ideal-$(date +\%F).dump
+
+- Keep retention policy (e.g., 30 days) and secure remote storage.
+
+12) Monitoring, logging & health
+- Add simple health endpoints in the backend (e.g., `/health`) checked by uptime monitoring.
+- Configure log rotation or a log aggregator (ELK, Grafana Loki). Use `docker logs` for simple setups.
+
+13) CI/CD (GitHub Actions example)
+- Workflow: build images, push to registry, SSH to server and run `docker compose pull && docker compose up -d`.
+- Store SSH key and registry creds in GitHub Secrets.
+
+14) Security hardening
+- Use `ufw` firewall:
+
+  sudo ufw allow OpenSSH
+  sudo ufw allow 80
+  sudo ufw allow 443
+  sudo ufw enable
+
+- Run containers as non-root where possible and use minimal base images.
+- Rotate secrets regularly.
+
+15) Post-deploy checks & rollback
+- Verify app via browser: https://ideal.bibetech.co.ke
+- API check: https://ideal.bibetech.co.ke/api/app-data
+- Rollback plan: keep previous image tags and run:
+
+  docker compose up -d --no-build app=your-image:previous-tag
+
+Optional: Use managed DB
+- For production reliability, consider a managed Postgres (e.g., DigitalOcean Managed DB, AWS RDS). Update `DATABASE_URL` accordingly and remove local `db` service.
+
+Support & next steps
+- I can add example `Dockerfile`, `docker-compose.yml`, `nginx` config, and a GitHub Actions workflow in this repo.
+- I can also implement `server/migrations/run-migrations.js` and basic backup scripts.
+
+End of guide.
