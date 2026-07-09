@@ -49,9 +49,9 @@ interface AppDataContextType {
   addIntegration: (integration: Omit<Integration, 'id'>) => Integration;
 }
 
-const API_BASE_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname)
   ? 'http://localhost:3000/api'
-  : '/api';
+  : '/api'));
 
 function hydrateData(data: any) {
   return {

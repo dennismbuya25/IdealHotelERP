@@ -175,69 +175,69 @@ export default function Settings() {
 
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             <button
               onClick={() => setActiveTab('general')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'general'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20'
               }`}
             >
               General Settings
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'users'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-green-500 bg-green-50 text-green-700 shadow-sm dark:bg-green-900/30 dark:text-green-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-400 hover:bg-green-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-green-900/20'
               }`}
             >
               User Management
             </button>
             <button
               onClick={() => setActiveTab('audit')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'audit'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm dark:bg-purple-900/30 dark:text-purple-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-purple-900/20'
               }`}
             >
               Audit Logs
             </button>
             <button
               onClick={() => setActiveTab('security')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'security'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-sm dark:bg-amber-900/30 dark:text-amber-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-amber-400 hover:bg-amber-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-amber-900/20'
               }`}
             >
               Security & Permissions
             </button>
             <button
               onClick={() => setActiveTab('notifications')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'notifications'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm dark:bg-rose-900/30 dark:text-rose-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-rose-400 hover:bg-rose-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-900/20'
               }`}
             >
               Notifications
             </button>
             <button
               onClick={() => setActiveTab('integrations')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'integrations'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm dark:bg-indigo-900/30 dark:text-indigo-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-indigo-900/20'
               }`}
             >
               Integrations
             </button>
-          </nav>
+          </div>
         </div>
 
         <div className="p-6">

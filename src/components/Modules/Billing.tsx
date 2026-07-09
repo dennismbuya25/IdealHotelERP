@@ -135,39 +135,39 @@ export default function Billing() {
 
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
               onClick={() => setActiveTab('invoices')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'invoices'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20'
               }`}
             >
               Invoices
             </button>
             <button
               onClick={() => setActiveTab('payments')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'payments'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-green-500 bg-green-50 text-green-700 shadow-sm dark:bg-green-900/30 dark:text-green-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-400 hover:bg-green-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-green-900/20'
               }`}
             >
               Payments
             </button>
             <button
               onClick={() => setActiveTab('reports')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'reports'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm dark:bg-purple-900/30 dark:text-purple-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-purple-900/20'
               }`}
             >
               Reports
             </button>
-          </nav>
+          </div>
         </div>
 
         <div className="p-6">
@@ -299,7 +299,7 @@ export default function Billing() {
                           {payment.invoiceId}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          ${payment.amount.toLocaleString()}
+                          {formatCurrency(payment.amount)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">

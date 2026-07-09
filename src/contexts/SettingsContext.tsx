@@ -28,10 +28,10 @@ interface SettingsContextType {
 
 const defaultSettings: AppSettings = {
   hotelName: 'Ideal Hotel',
-  currency: 'USD',
-  timezone: 'UTC-5',
+  currency: 'KES',
+  timezone: 'UTC+3',
   language: 'English',
-  dateFormat: 'MM/DD/YYYY',
+  dateFormat: 'DD/MM/YYYY',
   checkInTime: '15:00',
   checkOutTime: '11:00',
   taxRate: 10,
@@ -64,6 +64,25 @@ function getCurrencyConfig(currencyCode: string) {
       return { code: 'KES', symbol: 'KSh' };
     default:
       return { code: 'USD', symbol: '$' };
+  }
+}
+
+function getTimeZoneIdentifier(timezone: string) {
+  switch ((timezone || '').toUpperCase()) {
+    case 'UTC+3':
+    case 'UTC+3 (EAST AFRICA TIME)':
+    case 'EAT':
+    case 'EAST AFRICA TIME':
+      return 'Africa/Nairobi';
+    case 'UTC+0':
+    case 'GMT':
+      return 'Etc/UTC';
+    case 'UTC-5':
+      return 'America/New_York';
+    case 'UTC-8':
+      return 'America/Los_Angeles';
+    default:
+      return 'Africa/Nairobi';
   }
 }
 
@@ -107,6 +126,29 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     }
   }, [settings]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const timeZone = getTimeZoneIdentifier(settings.timezone);
+    const originalToLocaleString = Date.prototype.toLocaleString;
+    const originalToLocaleDateString = Date.prototype.toLocaleDateString;
+
+    Date.prototype.toLocaleString = function(locales?: string | string[], options?: Intl.DateTimeFormatOptions) {
+      return originalToLocaleString.call(this, locales ?? 'en-KE', { timeZone, ...options });
+    };
+
+    Date.prototype.toLocaleDateString = function(locales?: string | string[], options?: Intl.DateTimeFormatOptions) {
+      return originalToLocaleDateString.call(this, locales ?? 'en-KE', { timeZone, ...options });
+    };
+
+    return () => {
+      Date.prototype.toLocaleString = originalToLocaleString;
+      Date.prototype.toLocaleDateString = originalToLocaleDateString;
+    };
+  }, [settings.timezone]);
 
   const updateSettings = (changes: Partial<AppSettings> | ((prev: AppSettings) => AppSettings)) => {
     setSettings(prev => {

@@ -20,6 +20,7 @@ export default function Finance() {
   const totalExpenses = staff.reduce((sum, member) => sum + member.salary, 0) + inventoryExpense + recordedExpenses;
   const netProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue ? (netProfit / totalRevenue) * 100 : 0;
+  const staffCost = staff.reduce((sum, member) => sum + member.salary, 0);
   const financialData = {
     totalRevenue,
     totalExpenses,
@@ -27,6 +28,7 @@ export default function Finance() {
     profitMargin,
     monthlyGrowth: totalRevenue ? 100 : 0,
     cashFlow: netProfit,
+    liveSummary: totalRevenue || totalExpenses ? 'Live from current records' : 'No financial activity yet',
   };
 
   const revenueStreams = [
@@ -35,8 +37,9 @@ export default function Finance() {
   ];
 
   const expenseCategories = [
-    { name: 'Staff Salaries', amount: staff.reduce((sum, member) => sum + member.salary, 0), percentage: totalExpenses ? (staff.reduce((sum, member) => sum + member.salary, 0) / totalExpenses) * 100 : 0, color: 'bg-red-500' },
-    { name: 'Inventory', amount: inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0), percentage: totalExpenses ? (inventoryItems.reduce((sum, item) => sum + item.unitPrice * item.currentStock, 0) / totalExpenses) * 100 : 0, color: 'bg-orange-500' },
+    { name: 'Staff Salaries', amount: staffCost, percentage: totalExpenses ? (staffCost / totalExpenses) * 100 : 0, color: 'bg-red-500' },
+    { name: 'Inventory', amount: inventoryExpense, percentage: totalExpenses ? (inventoryExpense / totalExpenses) * 100 : 0, color: 'bg-orange-500' },
+    { name: 'Recorded Expenses', amount: recordedExpenses, percentage: totalExpenses ? (recordedExpenses / totalExpenses) * 100 : 0, color: 'bg-purple-500' },
   ];
 
   const monthlyData = [{ month: new Date().toLocaleDateString('en-US', { month: 'short' }), revenue: totalRevenue, expenses: totalExpenses, profit: netProfit }];
@@ -79,7 +82,7 @@ export default function Finance() {
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalRevenue)}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{financialData.monthlyGrowth}% from last month</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">{financialData.liveSummary}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-600" />
           </div>
@@ -89,7 +92,7 @@ export default function Finance() {
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenses</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalExpenses)}</p>
-              <p className="text-sm text-red-600 dark:text-red-400 mt-1">+5.2% from last month</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-1">Tracked from entered expenses</p>
             </div>
             <TrendingDown className="w-8 h-8 text-red-600" />
           </div>
@@ -194,9 +197,9 @@ export default function Finance() {
                       <div className="w-12 text-sm font-medium text-gray-600 dark:text-gray-400">{data.month}</div>
                       <div className="flex-1 space-y-1">
                         <div className="flex justify-between text-sm">
-                          <span className="text-green-600 dark:text-green-400">Revenue: ${data.revenue.toLocaleString()}</span>
-                          <span className="text-red-600 dark:text-red-400">Expenses: ${data.expenses.toLocaleString()}</span>
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">Profit: ${data.profit.toLocaleString()}</span>
+                          <span className="text-green-600 dark:text-green-400">Revenue: {formatCurrency(data.revenue)}</span>
+                          <span className="text-red-600 dark:text-red-400">Expenses: {formatCurrency(data.expenses)}</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-medium">Profit: {formatCurrency(data.profit)}</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
@@ -265,7 +268,7 @@ export default function Finance() {
                       <div key={stream.name} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium text-gray-700 dark:text-gray-300">{stream.name}</span>
-                          <span className="text-gray-900 dark:text-white">${stream.amount.toLocaleString()} ({stream.percentage}%)</span>
+                          <span className="text-gray-900 dark:text-white">{formatCurrency(stream.amount)} ({stream.percentage}%)</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
@@ -294,15 +297,15 @@ export default function Finance() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Average Daily Revenue</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalRevenue / 30)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{bookings.length ? formatCurrency(financialData.totalRevenue / Math.max(bookings.length, 1)) : formatCurrency(0)}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Revenue per Room</h5>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(financialData.totalRevenue / 50)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{bookings.length ? formatCurrency(financialData.totalRevenue / Math.max(bookings.length, 1)) : formatCurrency(0)}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Growth Rate</h5>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">+{financialData.monthlyGrowth}%</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{financialData.profitMargin.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
@@ -328,7 +331,7 @@ export default function Finance() {
                       <div key={category.name} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium text-gray-700 dark:text-gray-300">{category.name}</span>
-                          <span className="text-gray-900 dark:text-white">${category.amount.toLocaleString()} ({category.percentage}%)</span>
+                          <span className="text-gray-900 dark:text-white">{formatCurrency(category.amount)} ({category.percentage}%)</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
@@ -348,7 +351,7 @@ export default function Finance() {
                     {monthlyData.map((data) => (
                       <div key={data.month} className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{data.month}</span>
-                        <span className="text-sm text-gray-900 dark:text-white">${data.expenses.toLocaleString()}</span>
+                        <span className="text-sm text-gray-900 dark:text-white">{formatCurrency(data.expenses)}</span>
                       </div>
                     ))}
                   </div>
@@ -367,7 +370,7 @@ export default function Finance() {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
                   <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Budget Variance</h5>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">+5.2%</p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{financialData.totalRevenue ? `${((financialData.totalExpenses / financialData.totalRevenue) * 100).toFixed(1)}%` : '0.0%'}</p>
                 </div>
               </div>
             </div>
@@ -414,15 +417,15 @@ export default function Finance() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Operating Cash Flow</span>
-                      <span className="text-sm font-medium text-green-600 dark:text-green-400">$65,200</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">{formatCurrency(financialData.netProfit)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Investing Cash Flow</span>
-                      <span className="text-sm font-medium text-red-600 dark:text-red-400">-$12,000</span>
+                      <span className="text-sm font-medium text-red-600 dark:text-red-400">{formatCurrency(-inventoryExpense)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Financing Cash Flow</span>
-                      <span className="text-sm font-medium text-blue-600 dark:text-blue-400">$36,000</span>
+                      <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{formatCurrency(0)}</span>
                     </div>
                     <hr className="border-gray-200 dark:border-gray-600" />
                     <div className="flex justify-between">
@@ -441,16 +444,16 @@ export default function Finance() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Total Assets</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">$850,000</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(totalRevenue + inventoryExpense)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Total Liabilities</span>
-                      <span className="text-sm font-medium text-red-600 dark:text-red-400">$320,000</span>
+                      <span className="text-sm font-medium text-red-600 dark:text-red-400">{formatCurrency(staffCost + recordedExpenses)}</span>
                     </div>
                     <hr className="border-gray-200 dark:border-gray-600" />
                     <div className="flex justify-between">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">Owner's Equity</span>
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">$530,000</span>
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatCurrency(financialData.netProfit)}</span>
                     </div>
                   </div>
                   <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm transition-colors">

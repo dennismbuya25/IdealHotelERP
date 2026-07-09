@@ -28,10 +28,10 @@ export default function Dashboard() {
   const getRoleSpecificStats = () => {
     if (user?.role === 'receptionist') {
       return [
-        { title: 'Today Check-ins', value: stats.checkInsToday, icon: Users, color: 'green' as const, change: '+12% from yesterday', changeType: 'positive' as const },
-        { title: 'Today Check-outs', value: stats.checkOutsToday, icon: Users, color: 'blue' as const, change: '+5% from yesterday', changeType: 'positive' as const },
+        { title: 'Today Check-ins', value: stats.checkInsToday, icon: Users, color: 'green' as const },
+        { title: 'Today Check-outs', value: stats.checkOutsToday, icon: Users, color: 'blue' as const },
         { title: 'Available Rooms', value: stats.availableRooms, icon: Home, color: 'purple' as const },
-        { title: 'New Bookings', value: stats.todayBookings, icon: Calendar, color: 'indigo' as const, change: '+8% from yesterday', changeType: 'positive' as const },
+        { title: 'New Bookings', value: stats.todayBookings, icon: Calendar, color: 'indigo' as const },
       ];
     }
 
@@ -54,10 +54,10 @@ export default function Dashboard() {
     }
 
     return [
-      { title: 'Total Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'green' as const, change: '+12% from last month', changeType: 'positive' as const },
-      { title: 'Occupancy Rate', value: `${stats.occupancyRate}%`, icon: TrendingUp, color: 'blue' as const, change: '+3% from last week', changeType: 'positive' as const },
+      { title: 'Total Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'green' as const },
+      { title: 'Occupancy Rate', value: `${stats.occupancyRate}%`, icon: TrendingUp, color: 'blue' as const },
       { title: 'Available Rooms', value: stats.availableRooms, icon: Home, color: 'purple' as const },
-      { title: 'Guest Satisfaction', value: stats.customerSatisfaction, icon: Star, color: 'yellow' as const, change: '+0.2 from last month', changeType: 'positive' as const },
+      { title: 'Guest Profiles', value: guests.length, icon: Star, color: 'yellow' as const },
     ];
   };
 

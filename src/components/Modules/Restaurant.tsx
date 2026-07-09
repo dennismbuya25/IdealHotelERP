@@ -144,39 +144,39 @@ export default function Restaurant() {
 
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'orders'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20'
               }`}
             >
               Orders & KOT
             </button>
             <button
               onClick={() => setActiveTab('menu')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'menu'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-green-500 bg-green-50 text-green-700 shadow-sm dark:bg-green-900/30 dark:text-green-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-400 hover:bg-green-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-green-900/20'
               }`}
             >
               Menu Management
             </button>
             <button
               onClick={() => setActiveTab('kitchen')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === 'kitchen'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm dark:bg-purple-900/30 dark:text-purple-300'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-purple-900/20'
               }`}
             >
               Kitchen Dashboard
             </button>
-          </nav>
+          </div>
         </div>
 
         <div className="p-6">
@@ -357,19 +357,19 @@ export default function Restaurant() {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Kitchen Performance</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">85%</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">On-time Delivery</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{kitchenOrders.length ? `${Math.round((kitchenOrders.filter(order => order.status === 'ready').length / kitchenOrders.length) * 100)}%` : '0%'}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Ready Orders</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">22m</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{kitchenOrders.length ? `${Math.round(kitchenOrders.reduce((sum, order) => sum + (order.estimatedTime || 0), 0) / kitchenOrders.length)}m` : '0m'}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Avg Prep Time</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">4.5/5</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Food Rating</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{kitchenOrders.length ? `${(kitchenOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0) / kitchenOrders.length).toFixed(0)}` : '0'}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Avg Order Value</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">156</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{kitchenOrders.length}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Orders Today</p>
                   </div>
                 </div>
